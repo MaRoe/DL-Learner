@@ -10,10 +10,12 @@ import org.apache.log4j.Logger;
 import org.dllearner.algorithms.celoe.CELOE;
 import org.dllearner.algorithms.celoe.OEHeuristicRuntime;
 import org.dllearner.core.AbstractCELA;
+import org.dllearner.core.AbstractReasonerComponent;
 import org.dllearner.core.KnowledgeSource;
 import org.dllearner.core.owl.Individual;
 import org.dllearner.core.owl.NamedClass;
 import org.dllearner.kb.OWLAPIOntology;
+import org.dllearner.learningproblems.PosNegLPStandard;
 import org.dllearner.learningproblems.PosOnlyLP;
 import org.dllearner.reasoning.MaterializableFastInstanceChecker;
 import org.dllearner.reasoning.OWLAPIReasoner;
@@ -26,24 +28,29 @@ import org.semanticweb.owlapi.model.OWLOntology;
 public class SARChallenge {
     private static final Logger logger = Logger.getLogger(SARChallenge.class.getName());
     private final static String dumpFilePath = "../examples/sar/dump.nt";
-    private final static String responderFilePath = "../examples/sar/responder.txt";
-    private final static String nonResponderFilePath = "../examples/sar/non_responder.txt";
+    private final static String responderFilePathTemplate = "../examples/sar/responder_%04d.txt";
+    private final static String nonResponderFilePathTemplate = "../examples/sar/non_responder_%04d.txt";
+    private final static int numSamples = 200;  // possible values: 500, 200, 100, 50
 
     public static void main(String[] args) throws Exception {
         ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
 
-        System.out.println("Loading ontology...");
+        // loading ontology
+        logger.debug("Loading ontology...");
         long start = System.currentTimeMillis();
-		OWLOntology ontology = OWLManager.createOWLOntologyManager().loadOntologyFromOntologyDocument(
-				new File(dumpFilePath)); 
-		long end = System.currentTimeMillis();
-		System.out.println("Operation took " + (end - start) + "ms");
+        OWLOntology ontology = OWLManager.createOWLOntologyManager()
+                .loadOntologyFromOntologyDocument(new File(dumpFilePath)); 
 
-        //        OWLDataFactory df = new OWLDataFactoryImpl();
+        long end = System.currentTimeMillis();
+        logger.debug("Operation took " + (end - start) + "ms");
+
+        // read positive and negative examples
         SortedSet<Individual> posExamples = new TreeSet<Individual>();
         SortedSet<Individual> negExamples = new TreeSet<Individual>();
 
-        // read positive and negative examples
+        String responderFilePath = String.format(responderFilePathTemplate, numSamples);
+        String nonResponderFilePath = String.format(nonResponderFilePathTemplate, numSamples);
+
         BufferedReader buffRead = new BufferedReader(new FileReader(new File(responderFilePath)));
         String line;
         while ((line = buffRead.readLine()) != null) {
@@ -56,23 +63,26 @@ public class SARChallenge {
             negExamples.add(new Individual(line.trim()));
         }
 
+        // set up knowledge source
         KnowledgeSource ks = new OWLAPIOntology(ontology);
         ks.init();
-        
+
+        // set up reasoner
         logger.info("initializing reasoner...");
         OWLAPIReasoner baseReasoner = new OWLAPIReasoner(ks);
         baseReasoner.setReasonerTypeString("trowl");
         baseReasoner.init();
 
+        // set up reasoner component
         MaterializableFastInstanceChecker rc = new MaterializableFastInstanceChecker(ks);
         rc.setReasonerComponent(baseReasoner);
         rc.setHandlePunning(true);
         rc.setUseMaterializationCaching(false);
         rc.init();
-        // TODO: needs to be changed to PosNeg...
-        PosOnlyLP lp = new PosOnlyLP(rc, (SortedSet<Individual>) posExamples);
+        PosNegLPStandard lp = new PosNegLPStandard(rc, posExamples, negExamples);
         lp.init();
 
+        // set up learning algorithm
         logger.info("initializing learning algorithm...");
         AbstractCELA la;
         OEHeuristicRuntime heuristic = new OEHeuristicRuntime();
