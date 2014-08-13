@@ -3,9 +3,10 @@ package org.dllearner.scripts;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.HashSet;
+import java.util.Set;
 
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.dllearner.algorithms.celoe.CELOE;
 import org.dllearner.algorithms.celoe.OEHeuristicRuntime;
@@ -25,12 +26,14 @@ import org.semanticweb.owlapi.model.OWLOntology;
 
 public class SARChallenge {
     private static final Logger logger = Logger.getLogger(SARChallenge.class.getName());
-    private final static String dumpFilePath = "../examples/sar/dump.nt";
+//    private final static String dumpFilePath = "../examples/sar/dump.nt";
+    private final static String dumpFilePath = "../examples/sar/sampled_0020_5.nt";
     private final static String responderFilePathTemplate = "../examples/sar/responder_%04d.txt";
     private final static String nonResponderFilePathTemplate = "../examples/sar/non_responder_%04d.txt";
-    private final static int numSamples = 200;  // possible values: 500, 200, 100, 50
+    private final static int numSamples = 20;  // possible values: 500, 200, 100, 50, 20, 10 5
 
     public static void main(String[] args) throws Exception {
+        logger.setLevel(Level.DEBUG);
         ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
 
         // loading ontology
@@ -38,13 +41,12 @@ public class SARChallenge {
         long start = System.currentTimeMillis();
         OWLOntology ontology = OWLManager.createOWLOntologyManager()
                 .loadOntologyFromOntologyDocument(new File(dumpFilePath)); 
-
         long end = System.currentTimeMillis();
         logger.debug("Operation took " + (end - start) + "ms");
 
         // read positive and negative examples
-        SortedSet<Individual> posExamples = new TreeSet<Individual>();
-        SortedSet<Individual> negExamples = new TreeSet<Individual>();
+        Set<Individual> posExamples = new HashSet<Individual>();
+        Set<Individual> negExamples = new HashSet<Individual>();
 
         String responderFilePath = String.format(responderFilePathTemplate, numSamples);
         String nonResponderFilePath = String.format(nonResponderFilePathTemplate, numSamples);
@@ -52,13 +54,17 @@ public class SARChallenge {
         BufferedReader buffRead = new BufferedReader(new FileReader(new File(responderFilePath)));
         String line;
         while ((line = buffRead.readLine()) != null) {
-            posExamples.add(new Individual(line.trim()));
+            line = line.trim();
+            line = line.substring(1, line.length()-1);  // strip off quotes
+            posExamples.add(new Individual(line));
         }
         buffRead.close();
         
         buffRead = new BufferedReader(new FileReader(new File(nonResponderFilePath)));
         while ((line = buffRead.readLine()) != null) {
-            negExamples.add(new Individual(line.trim()));
+            line = line.trim();
+            line = line.substring(1, line.length()-1);  // strip off quotes
+            negExamples.add(new Individual(line));
         }
 
         // set up knowledge source
@@ -77,7 +83,10 @@ public class SARChallenge {
         rc.setHandlePunning(true);
         rc.setUseMaterializationCaching(false);
         rc.init();
-        PosNegLPStandard lp = new PosNegLPStandard(rc, posExamples, negExamples);
+
+        PosNegLPStandard lp = new PosNegLPStandard(rc);
+        lp.setPositiveExamples(posExamples);
+        lp.setNegativeExamples(negExamples);
         lp.init();
 
         // set up learning algorithm
