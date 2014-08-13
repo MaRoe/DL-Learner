@@ -25,15 +25,19 @@ import org.semanticweb.owlapi.model.OWLOntology;
 
 public class SARChallenge {
     private static final Logger logger = Logger.getLogger(SARChallenge.class.getName());
-    private final static String dumpFilePath = "examples/sar/dump.nt";
-    private final static String responderFilePath = "examples/sar/responder.txt";
-    private final static String nonResponderFilePath = "examples/sar/non_responder.txt";
+    private final static String dumpFilePath = "../examples/sar/dump.nt";
+    private final static String responderFilePath = "../examples/sar/responder.txt";
+    private final static String nonResponderFilePath = "../examples/sar/non_responder.txt";
 
     public static void main(String[] args) throws Exception {
         ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
 
-        OWLOntology ontology = OWLManager.createOWLOntologyManager()
-                .loadOntologyFromOntologyDocument(new File(dumpFilePath));
+        System.out.println("Loading ontology...");
+        long start = System.currentTimeMillis();
+		OWLOntology ontology = OWLManager.createOWLOntologyManager().loadOntologyFromOntologyDocument(
+				new File(dumpFilePath)); 
+		long end = System.currentTimeMillis();
+		System.out.println("Operation took " + (end - start) + "ms");
 
         //        OWLDataFactory df = new OWLDataFactoryImpl();
         SortedSet<Individual> posExamples = new TreeSet<Individual>();
@@ -65,7 +69,6 @@ public class SARChallenge {
         rc.setHandlePunning(true);
         rc.setUseMaterializationCaching(false);
         rc.init();
-        rc.setBaseURI("http://ex.org");
         // TODO: needs to be changed to PosNeg...
         PosOnlyLP lp = new PosOnlyLP(rc, (SortedSet<Individual>) posExamples);
         lp.init();
