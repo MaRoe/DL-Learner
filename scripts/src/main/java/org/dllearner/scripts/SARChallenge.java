@@ -26,11 +26,11 @@ import org.semanticweb.owlapi.model.OWLOntology;
 
 public class SARChallenge {
     private static final Logger logger = Logger.getLogger(SARChallenge.class.getName());
-//    private final static String dumpFilePath = "../examples/sar/dump.nt";
-    private final static String dumpFilePath = "../examples/sar/sampled_0020_5.nt";
+    private final static String dumpFilePathTemplate = "../examples/sar/sampled_%04d_%d.nt";
     private final static String responderFilePathTemplate = "../examples/sar/responder_%04d.txt";
     private final static String nonResponderFilePathTemplate = "../examples/sar/non_responder_%04d.txt";
-    private final static int numSamples = 20;  // possible values: 500, 200, 100, 50, 20, 10 5
+    private final static int numSamples = 5;  // possible values: 5
+    private final static int depth = 4; // possible values: 1, 2, 3, 4
 
     public static void main(String[] args) throws Exception {
         logger.setLevel(Level.DEBUG);
@@ -39,6 +39,7 @@ public class SARChallenge {
         // loading ontology
         logger.debug("Loading ontology...");
         long start = System.currentTimeMillis();
+        String dumpFilePath = String.format(dumpFilePathTemplate, numSamples, depth);
         OWLOntology ontology = OWLManager.createOWLOntologyManager()
                 .loadOntologyFromOntologyDocument(new File(dumpFilePath)); 
         long end = System.currentTimeMillis();
