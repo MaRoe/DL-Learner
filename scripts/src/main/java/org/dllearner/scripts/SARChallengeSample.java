@@ -31,7 +31,7 @@ public class SARChallengeSample {
         Set<String> sampleURIs = new HashSet<String>();
         
         logger.debug("loading samples...");
-        int sampleSize = 5;
+        int sampleSize = 20;
         String responderFilePath = String.format(responderFilePathTemplate, sampleSize);
         sampleURIs.addAll(readSamples(responderFilePath));
         String nonResponderFilePath = String.format(nonResponderFilePathTemplate, sampleSize);
@@ -42,8 +42,8 @@ public class SARChallengeSample {
         Model wholeDump = readDump(dumpFilePath);
         logger.debug("finished loading dataset");
 
-        int cbdDepth = 4;
-        while (cbdDepth < 10) {
+        int cbdDepth = 1;
+        while (cbdDepth < 6) {
             Model sampledDataset = sample(wholeDump, sampleURIs, cbdDepth);
             String sampledDatasetPath = String.format(sampledDatasetPathTemplate, sampleSize, cbdDepth);
             sampledDataset.write(new FileOutputStream(new File(sampledDatasetPath)), Lang.NTRIPLES.getName());
