@@ -4,3 +4,4 @@
 target/
 log/
 *.swp
+examples/sar/dump.nt
