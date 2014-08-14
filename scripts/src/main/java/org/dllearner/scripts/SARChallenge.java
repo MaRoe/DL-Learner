@@ -75,7 +75,7 @@ public class SARChallenge {
         // set up reasoner
         logger.info("initializing reasoner...");
         OWLAPIReasoner baseReasoner = new OWLAPIReasoner(ks);
-        baseReasoner.setReasonerTypeString("trowl");
+        baseReasoner.setReasonerTypeString("hermit");
         baseReasoner.init();
 
         // set up reasoner component

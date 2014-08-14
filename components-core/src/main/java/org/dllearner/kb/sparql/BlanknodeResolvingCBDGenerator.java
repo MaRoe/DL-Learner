@@ -19,6 +19,7 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 	
 	private QueryExecutionFactoryModel qef;
 	boolean resolveBlankNodes = true;
+	private Model extendedModel;
 
 	public BlanknodeResolvingCBDGenerator(Model model) {
 		String query = "prefix : <http://dl-learner.org/ontology/> "
@@ -26,10 +27,24 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 				+ "where {  ?s ?p ?o .  bind( if(isIRI(?s),:sameIri,:sameBlank) as ?type )}";
 		qef = new QueryExecutionFactoryModel(model);
 		QueryExecution qe = qef.createQueryExecution(query);
-		Model extendedModel = qe.execConstruct();
+		extendedModel = qe.execConstruct();
 		qe.close();
 		
 		qef = new QueryExecutionFactoryModel(extendedModel);
+	}
+	
+	/**
+	 * @return the extendedModel
+	 */
+	public Model getExtendedModel() {
+		return extendedModel;
+	}
+	
+	/**
+	 * @return the qef
+	 */
+	public QueryExecutionFactoryModel getQef() {
+		return qef;
 	}
 
 	/* (non-Javadoc)
@@ -53,19 +68,22 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 	 */
 	@Override
 	public Model getConciseBoundedDescription(String resourceURI, int depth, boolean withTypesForLeafs) {
-		StringBuilder constructTemplate = new StringBuilder("?s0 ?p0 ?o0 .");
+		if(depth < 1){
+			throw new IllegalArgumentException("Min depth for CBD is 1.");
+		}
+		StringBuilder constructTemplate = new StringBuilder("?x ?p ?o .");
 		for(int i = 1; i <= depth; i++){
-			constructTemplate.append("?o").append(i-1).append(" ?p").append(i).append(" ?o").append(i).append(" .");
+//			constructTemplate.append("?o").append(i-1).append(" ?p").append(i).append(" ?o").append(i).append(" .");
 		}
 		
 		StringBuilder triplesTemplate = new StringBuilder("?s0 ?p0 ?o0 .");
-		for(int i = 1; i <= depth; i++){
+		for(int i = 1; i < depth; i++){
 			triplesTemplate.append("OPTIONAL{").append("?o").append(i-1).append(" ?p").append(i).append(" ?o").append(i).append(" .");
 		}
 		if(resolveBlankNodes){
-			triplesTemplate.append("?o").append(depth).append("((!<x>|!<y>)/:sameBlank)* ?x . ?x ?px ?ox .filter(!(?p in (:sameIri, :sameBlank)))");
+			triplesTemplate.append("?o").append(depth-1).append("((!<x>|!<y>)/:sameBlank)* ?x . ?x ?p ?o .filter(!(?p in (:sameIri, :sameBlank)))");
 		}
-		for(int i = 1; i <= depth; i++){
+		for(int i = 1; i < depth; i++){
 			triplesTemplate.append("}");
 		}
 		
@@ -76,7 +94,7 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 		
 		ParameterizedSparqlString query = new ParameterizedSparqlString(queryString.toString());
 		query.setIri("s0", resourceURI);
-		System.out.println(query);
+		System.out.println(query.asQuery());
 		QueryExecution qe = qef.createQueryExecution(query.toString());
 		Model cbd = qe.execConstruct();
 		qe.close();
