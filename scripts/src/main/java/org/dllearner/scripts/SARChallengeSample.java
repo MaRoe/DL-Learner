@@ -8,7 +8,10 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.jena.riot.Lang;
@@ -29,25 +32,28 @@ public class SARChallengeSample {
     public static void main(String[] args) throws Exception {
         logger.setLevel(Level.DEBUG);
         Set<String> sampleURIs = new HashSet<String>();
-        
-        logger.debug("loading samples...");
-        int sampleSize = 20;
-        String responderFilePath = String.format(responderFilePathTemplate, sampleSize);
-        sampleURIs.addAll(readSamples(responderFilePath));
-        String nonResponderFilePath = String.format(nonResponderFilePathTemplate, sampleSize);
-        sampleURIs.addAll(readSamples(nonResponderFilePath));
-        logger.debug("finished loading samples");
-        
+
         logger.debug("loading dataset...");
         Model wholeDump = readDump(dumpFilePath);
         logger.debug("finished loading dataset");
 
-        int cbdDepth = 1;
-        while (cbdDepth < 6) {
-            Model sampledDataset = sample(wholeDump, sampleURIs, cbdDepth);
-            String sampledDatasetPath = String.format(sampledDatasetPathTemplate, sampleSize, cbdDepth);
-            sampledDataset.write(new FileOutputStream(new File(sampledDatasetPath)), Lang.NTRIPLES.getName());
-            cbdDepth++;
+        List<Integer> sampeSizes = new ArrayList<Integer>(Arrays.asList(5, 10, 20));
+
+        for (Integer sampleSize : sampeSizes) {
+            logger.debug("loading samples...");
+            String responderFilePath = String.format(responderFilePathTemplate, sampleSize);
+            sampleURIs.addAll(readSamples(responderFilePath));
+            String nonResponderFilePath = String.format(nonResponderFilePathTemplate, sampleSize);
+            sampleURIs.addAll(readSamples(nonResponderFilePath));
+            logger.debug("finished loading samples");
+
+            int cbdDepth = 1;
+            while (cbdDepth < 6) {
+                Model sampledDataset = sample(wholeDump, sampleURIs, cbdDepth);
+                String sampledDatasetPath = String.format(sampledDatasetPathTemplate, sampleSize, cbdDepth);
+                sampledDataset.write(new FileOutputStream(new File(sampledDatasetPath)), Lang.NTRIPLES.getName());
+                cbdDepth++;
+            }
         }
     }
 
