@@ -6,6 +6,9 @@ package org.dllearner.kb.sparql;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 
 import org.junit.Test;
 
@@ -57,9 +60,27 @@ public class BlanknodeResolvingCBDGeneratorTest {
 //		test.write(System.out, "TURTLE" , "http://ex.org/");
 		
 		String resource = "http://ex.org/A";
-		Model cbd = cbdGenerator.getConciseBoundedDescription(resource, 2);
+		Model cbd = cbdGenerator.getConciseBoundedDescription(resource, 4);
 		
 		cbd.write(System.out, "TURTLE" , "http://ex.org/");
+	}
+	
+	/**
+	 * Test method for {@link org.dllearner.kb.sparql.BlanknodeResolvingCBDGenerator#getConciseBoundedDescription(java.lang.String, int)}.
+	 * @throws FileNotFoundException 
+	 */
+	@Test
+	public void testGetConciseBoundedDescription2() throws FileNotFoundException {
+		Model model = ModelFactory.createDefaultModel();
+		model.read(new FileInputStream("../examples/sar/"), null, "TURTLE");
+		
+		BlanknodeResolvingCBDGenerator cbdGenerator = new BlanknodeResolvingCBDGenerator(model);
+		cbdGenerator.getExtendedModel().write(System.out, "TURTLE" , "http://ex.org/");
+		
+		String resource = "http://bio2rdf.org/ra.challenge:1000000";
+		Model cbd = cbdGenerator.getConciseBoundedDescription(resource, 1);
+		
+		cbd.write(System.out, "TURTLE" , "http://bio2rdf.org/ra.challenge:");
 	}
 
 }

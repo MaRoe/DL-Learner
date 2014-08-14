@@ -44,6 +44,10 @@ public class SARChallenge {
                 .loadOntologyFromOntologyDocument(new File(dumpFilePath)); 
         long end = System.currentTimeMillis();
         logger.debug("Operation took " + (end - start) + "ms");
+        
+        logger.debug("Classes:" + ontology.getClassesInSignature());
+        logger.debug("Object Properties:" + ontology.getObjectPropertiesInSignature());
+        logger.debug("Data Properties:" + ontology.getDataPropertiesInSignature());
 
         // read positive and negative examples
         Set<Individual> posExamples = new HashSet<Individual>();
