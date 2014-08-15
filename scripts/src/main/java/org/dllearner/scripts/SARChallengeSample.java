@@ -19,8 +19,20 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.dllearner.kb.sparql.BlanknodeResolvingCBDGenerator;
 
+import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.query.QueryExecution;
+import com.hp.hpl.jena.query.QueryExecutionFactory;
+import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.Property;
+import com.hp.hpl.jena.rdf.model.RDFNode;
+import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.ResourceFactory;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
+import com.hp.hpl.jena.vocabulary.OWL;
+import com.hp.hpl.jena.vocabulary.RDF;
 
 public class SARChallengeSample {
     private static final Logger logger = Logger.getLogger(SARChallengeSample.class.getName());
@@ -61,14 +73,86 @@ public class SARChallengeSample {
         logger.info("sampling dataset with depth " + cbdDepth + "...");
         long start = System.currentTimeMillis();
         Model sampledDataset = ModelFactory.createDefaultModel();
+        // FIXME: Don't call this here
         BlanknodeResolvingCBDGenerator cbdGenerator = new BlanknodeResolvingCBDGenerator(wholeDump);
         for (String uriStr : sampleURIs) {
             logger.debug("getting CBD for " + uriStr + "...");
-            sampledDataset.add(cbdGenerator.getConciseBoundedDescription(uriStr, cbdDepth));
+            Model cbd = cbdGenerator.getConciseBoundedDescription(uriStr, cbdDepth);
+            postProcessCBD(cbd, wholeDump);
+            cbd.removeAll(ResourceFactory.createResource(uriStr), ResourceFactory.createProperty("http://bio2rdf.org/ra.challenge_vocabulary:non-responder"), (RDFNode) null);
+            sampledDataset.add(cbd);
         }
         long end = System.currentTimeMillis();
         logger.info("finished sampling dataset with depth " + cbdDepth + " in " + (end-start) + "ms");
+
         return sampledDataset;
+    }
+
+    private static Model postProcessCBD(Model cbd, Model dataset) {
+        Model newAxioms = ModelFactory.createDefaultModel();
+        StmtIterator sttmntIt = cbd.listStatements();
+
+        while (sttmntIt.hasNext()) {
+            Statement sttmnt = sttmntIt.next();
+            // get information about properties
+            Property prop = sttmnt.getPredicate();
+            newAxioms.add(getPropertyAxioms(prop, dataset));
+        }
+
+        // add class type statements and further information about the class
+        // from the dataset
+        StmtIterator clsSttmntIt = cbd.listStatements(null, RDF.type, (RDFNode) null);
+        while (clsSttmntIt.hasNext()) {
+            Statement sttmnt = clsSttmntIt.next();
+            RDFNode object = sttmnt.getObject();
+            Statement typeSttmnt = ResourceFactory.createStatement(
+                    object.asResource(), RDF.type, OWL.Class);
+            newAxioms.add(typeSttmnt);
+            newAxioms.add(getResourceAxioms(object.asResource(), dataset));
+        }
+
+        cbd.add(newAxioms);
+        return cbd;
+    }
+
+    private static Model getPropertyAxioms(Property prop, Model dataset) {
+        Model propAxioms = ModelFactory.createDefaultModel();
+        StmtIterator propSttmntIt = dataset.listStatements(prop.asResource(), null, (RDFNode) null);
+
+        while (propSttmntIt.hasNext()) {
+            Statement propSttmnt = propSttmntIt.next();
+            // TODO: get and add further information?
+            propAxioms.add(propSttmnt);
+        }
+
+        String constructStr =
+                "CONSTRUCT { ?s ?p ?o } " +
+                    "WHERE { " +
+                        "?s <" + OWL.onProperty.getURI() + "> <" + prop.getURI() + "> ." +
+                        "?s ?p ?o " +
+                    "}";
+        Query query = QueryFactory.create(constructStr);
+        QueryExecution qe = QueryExecutionFactory.create(query, dataset);
+        Model restrModel = qe.execConstruct();
+        propAxioms.add(restrModel);
+
+        return propAxioms;
+    }
+
+    private static Model getResourceAxioms(Resource res, Model dataset) {
+        String constructStr =
+                "Prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> " +
+                "Prefix owl: <http://www.w3.org/2002/07/owl#> " +
+                "CONSTRUCT { ?s ?p ?o } " +
+                    "WHERE { " +
+                        "<" + res.getURI() + "> (rdfs:subClassOf|owl:equivalentClass|owl:disjointWith)* ?s . " +
+                        "?s ?p ?o . " +
+                    "}";
+        Query query = QueryFactory.create(constructStr);
+        QueryExecution qe = QueryExecutionFactory.create(query, dataset);
+        Model resAxioms = qe.execConstruct();
+
+        return resAxioms;
     }
 
     private static Model readDump(String dumpFilePath) throws FileNotFoundException {
