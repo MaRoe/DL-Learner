@@ -52,7 +52,7 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 	 */
 	@Override
 	public Model getConciseBoundedDescription(String resourceURI) {
-		return getConciseBoundedDescription(resourceURI, 0);
+		return getConciseBoundedDescription(resourceURI, 1);
 	}
 
 	/* (non-Javadoc)
