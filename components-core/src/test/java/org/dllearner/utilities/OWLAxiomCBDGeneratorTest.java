@@ -4,6 +4,7 @@
 package org.dllearner.utilities;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -46,9 +47,10 @@ public class OWLAxiomCBDGeneratorTest {
 	public void testGetCBD() throws OWLOntologyCreationException, FileNotFoundException {
 		ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
 		
-//		File file = new File("../examples/sar/dump.nt");
-//		Model model = ModelFactory.createDefaultModel();
-//		model.read(new FileInputStream(file), null, "TURTLE");
+		File f = new File("../examples/sar/dump_complete.nt");
+		Model model = ModelFactory.createDefaultModel();
+		model.read(new FileInputStream(f), null, "TURTLE");
+		getClasses(model);
 //		getPropertyTypes(model);
 		
 		
@@ -61,6 +63,25 @@ public class OWLAxiomCBDGeneratorTest {
 		
 		OWLAxiomCBDGenerator cbdGenerator = new OWLAxiomCBDGenerator(ontology);
 		Set<OWLAxiom> cbdAxioms = cbdGenerator.getCBD(df.getOWLNamedIndividual(IRI.create("http://bio2rdf.org/ra.challenge:1000000")), 2);
+	}
+	
+	private void getClasses(Model model){
+		//get all classes
+		NodeIterator iterator = model.listObjectsOfProperty(RDF.type);
+		while(iterator.hasNext()){
+			RDFNode object = iterator.next();
+			if(object.isURIResource()){
+				String uri = object.asResource().getURI();
+				if(!uri.startsWith(RDF.getURI()) 
+						&& !uri.startsWith(RDFS.getURI()) 
+						&& !uri.startsWith(OWL.getURI())){
+					System.out.println("<" + uri + "> <" + RDF.type.getURI() + "> <" + OWL.Class.getURI() + "> .");
+					
+				}
+
+			}
+		}
+		iterator.close();
 	}
 	
 	private void getPropertyTypes(Model model){
