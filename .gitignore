@@ -3,5 +3,8 @@
 .classpath
 target/
 log/
+cache
 *.swp
 examples/sar/dump.nt
+*.class
+target

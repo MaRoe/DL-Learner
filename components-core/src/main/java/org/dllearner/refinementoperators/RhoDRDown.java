@@ -833,7 +833,8 @@ public class RhoDRDown extends RefinementOperatorAdapter implements Component, C
 //				System.exit(0);
 //			}
 //		}
-		
+//		System.out.println("++++++++\nREFINING: " + description + "   maxLength:" + maxLength);
+//		System.out.println(refinements);
 		return refinements;		
 	}
 	
