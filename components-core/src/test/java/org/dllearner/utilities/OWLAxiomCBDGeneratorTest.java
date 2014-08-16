@@ -47,14 +47,14 @@ public class OWLAxiomCBDGeneratorTest {
 	public void testGetCBD() throws OWLOntologyCreationException, FileNotFoundException {
 		ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
 		
-		File f = new File("../examples/sar/dump_complete.nt");
-		Model model = ModelFactory.createDefaultModel();
-		model.read(new FileInputStream(f), null, "TURTLE");
-		getClasses(model);
+//		File f = new File("../examples/sar/dump_complete.nt");
+//		Model model = ModelFactory.createDefaultModel();
+//		model.read(new FileInputStream(f), null, "TURTLE");
+//		getClasses(model);
 //		getPropertyTypes(model);
 		
 		
-		File file = new File("../examples/sar/dump_complete.nt");
+		File file = new File("../examples/sar/dump_cleaned_10.nt");
 		OWLOntologyManager man = OWLManager.createOWLOntologyManager();
 		OWLDataFactory df = man.getOWLDataFactory();
 		OWLOntology ontology = man.loadOntologyFromOntologyDocument(file);
