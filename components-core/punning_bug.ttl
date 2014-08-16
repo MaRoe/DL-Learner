@@ -1,0 +1,13 @@
+@prefix : <http://ex.org/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+:A a owl:Class .
+:B a owl:Class .
+
+:A rdfs:subClassOf :B .
+
+:a1 a :A .
+
+_:x rdf:type owl:AllDifferent .
+_:x owl:members (:a1 :B) .
