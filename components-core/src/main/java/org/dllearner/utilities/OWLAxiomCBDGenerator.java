@@ -77,6 +77,7 @@ import org.semanticweb.owlapi.model.OWLTransitiveObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.SWRLRule;
 
 /**
+ * Generates Concise Bounded Descriptions in the OWL axiom level.
  * @author Lorenz Buehmann
  *
  */
@@ -93,6 +94,7 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	private Set<OWLProperty> visitedProperties;
 	private Set<OWLIndividual> visitedIndividuals;
 	
+	private boolean fetchCompleteRelatedTBox = true;
 	private boolean inTBox = false;
 	
 	public OWLAxiomCBDGenerator(OWLOntology ontology) {
@@ -110,10 +112,6 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 		// we start with the directly related axioms, i.e. depth 1
 		currentDepth = 1;
 		ind.accept(this);
-//		Set<OWLIndividualAxiom> axioms = ontology.getAxioms(ind);
-//		for (OWLIndividualAxiom axiom : axioms) {
-//			axiom.accept(this);
-//		}
 		
 		return cbdAxioms;
 	}
@@ -303,8 +301,6 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLObjectPropertyRangeAxiom axiom) {
 		add(axiom);
 	}
-
-	
 
 	/* (non-Javadoc)
 	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLFunctionalObjectPropertyAxiom)
