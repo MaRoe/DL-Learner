@@ -259,7 +259,7 @@ public class SimpleSubclassLearner extends AbstractAxiomLearningAlgorithm implem
 	}
 	
 	public static void main(String[] args) throws Exception{
-		SparqlEndpointKS ks = new SparqlEndpointKS(SparqlEndpoint.getEndpointDBpediaLiveAKSW());
+		SparqlEndpointKS ks = new SparqlEndpointKS(SparqlEndpoint.getEndpointDBpedia());
 		
 		SPARQLReasoner reasoner = new SPARQLReasoner(ks);
 		reasoner.prepareSubsumptionHierarchy();
