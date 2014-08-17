@@ -23,8 +23,11 @@ import org.semanticweb.owlapi.model.OWLDataExactCardinality;
 import org.semanticweb.owlapi.model.OWLDataHasValue;
 import org.semanticweb.owlapi.model.OWLDataMaxCardinality;
 import org.semanticweb.owlapi.model.OWLDataMinCardinality;
+import org.semanticweb.owlapi.model.OWLDataProperty;
 import org.semanticweb.owlapi.model.OWLDataPropertyAssertionAxiom;
+import org.semanticweb.owlapi.model.OWLDataPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLDataPropertyDomainAxiom;
+import org.semanticweb.owlapi.model.OWLDataPropertyExpression;
 import org.semanticweb.owlapi.model.OWLDataPropertyRangeAxiom;
 import org.semanticweb.owlapi.model.OWLDataSomeValuesFrom;
 import org.semanticweb.owlapi.model.OWLDatatypeDefinitionAxiom;
@@ -55,16 +58,21 @@ import org.semanticweb.owlapi.model.OWLObjectExactCardinality;
 import org.semanticweb.owlapi.model.OWLObjectHasSelf;
 import org.semanticweb.owlapi.model.OWLObjectHasValue;
 import org.semanticweb.owlapi.model.OWLObjectIntersectionOf;
+import org.semanticweb.owlapi.model.OWLObjectInverseOf;
 import org.semanticweb.owlapi.model.OWLObjectMaxCardinality;
 import org.semanticweb.owlapi.model.OWLObjectMinCardinality;
 import org.semanticweb.owlapi.model.OWLObjectOneOf;
+import org.semanticweb.owlapi.model.OWLObjectProperty;
 import org.semanticweb.owlapi.model.OWLObjectPropertyAssertionAxiom;
+import org.semanticweb.owlapi.model.OWLObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLObjectPropertyDomainAxiom;
+import org.semanticweb.owlapi.model.OWLObjectPropertyExpression;
 import org.semanticweb.owlapi.model.OWLObjectPropertyRangeAxiom;
 import org.semanticweb.owlapi.model.OWLObjectSomeValuesFrom;
 import org.semanticweb.owlapi.model.OWLObjectUnionOf;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLProperty;
+import org.semanticweb.owlapi.model.OWLPropertyExpressionVisitor;
 import org.semanticweb.owlapi.model.OWLReflexiveObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLSameIndividualAxiom;
 import org.semanticweb.owlapi.model.OWLSubAnnotationPropertyOfAxiom;
@@ -81,7 +89,7 @@ import org.semanticweb.owlapi.model.SWRLRule;
  * @author Lorenz Buehmann
  *
  */
-public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpressionVisitor, OWLIndividualVisitor{
+public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpressionVisitor, OWLIndividualVisitor, OWLPropertyExpressionVisitor{
 	
 	private OWLOntology ontology;
 	
@@ -94,8 +102,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	private Set<OWLProperty> visitedProperties;
 	private Set<OWLIndividual> visitedIndividuals;
 	
-	private boolean fetchCompleteRelatedTBox = true;
+	private boolean fetchCompleteRelatedTBox = false;
 	private boolean inTBox = false;
+	
+	private OWLClass currentClass;
+	private OWLObjectProperty currentObjectProperty;
+	private OWLDataProperty currentDataProperty;
 	
 	public OWLAxiomCBDGenerator(OWLOntology ontology) {
 		this.ontology = ontology;
@@ -116,6 +128,13 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 		return cbdAxioms;
 	}
 	
+	/**
+	 * @param fetchCompleteRelatedTBox the fetchCompleteRelatedTBox to set
+	 */
+	public void setFetchCompleteRelatedTBox(boolean fetchCompleteRelatedTBox) {
+		this.fetchCompleteRelatedTBox = fetchCompleteRelatedTBox;
+	}
+	
 	private String indent(){
 		String s = "";
 		for(int i = 1; i < currentDepth; i++){
@@ -126,7 +145,7 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	
 	public void add(OWLAxiom axiom){
 		cbdAxioms.add(axiom);
-		System.out.println(indent() + axiom);
+//		System.out.println(indent() + axiom);
 	}
 
 	/* (non-Javadoc)
@@ -160,12 +179,49 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	}
 	
 	/* (non-Javadoc)
+	 * @see org.semanticweb.owlapi.model.OWLPropertyExpressionVisitor#visit(org.semanticweb.owlapi.model.OWLObjectProperty)
+	 */
+	@Override
+	public void visit(OWLObjectProperty property) {
+		if(!visitedProperties.contains(property)){
+			visitedProperties.add(property);
+			
+			Set<OWLObjectPropertyAxiom> axioms = ontology.getAxioms(property);
+			for (OWLObjectPropertyAxiom ax : axioms) {
+				ax.accept(this);
+			}
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see org.semanticweb.owlapi.model.OWLPropertyExpressionVisitor#visit(org.semanticweb.owlapi.model.OWLObjectInverseOf)
+	 */
+	@Override
+	public void visit(OWLObjectInverseOf property) {
+	}
+
+	/* (non-Javadoc)
+	 * @see org.semanticweb.owlapi.model.OWLPropertyExpressionVisitor#visit(org.semanticweb.owlapi.model.OWLDataProperty)
+	 */
+	@Override
+	public void visit(OWLDataProperty property) {
+		if(!visitedProperties.contains(property)){
+			visitedProperties.add(property);
+			
+			Set<OWLDataPropertyAxiom> axioms = ontology.getAxioms(property);
+			for (OWLDataPropertyAxiom ax : axioms) {
+				ax.accept(this);
+			}
+		}
+	}
+	
+	/* (non-Javadoc)
 	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLClassAssertionAxiom)
 	 */
 	@Override
 	public void visit(OWLClassAssertionAxiom axiom) {
 		add(axiom);
-		if(inTBox || currentDepth < maxDepth){
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
 			currentDepth++;
 			boolean wasInTBox = inTBox;
 			inTBox = true;
@@ -182,12 +238,44 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	@Override
 	public void visit(OWLObjectPropertyAssertionAxiom axiom) {
 		add(axiom);
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
+			//get schema axioms for the property
+			OWLObjectPropertyExpression property = axiom.getProperty();
+			property.accept(this);
+			currentDepth--;
+		}
 		if(inTBox || currentDepth < maxDepth){
 			currentDepth++;
+			//get the next hop based on the object
 			OWLIndividual object = axiom.getObject();
 			object.accept(this);
 			currentDepth--;
 		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLNegativeObjectPropertyAssertionAxiom)
+	 */
+	@Override
+	public void visit(OWLNegativeObjectPropertyAssertionAxiom axiom) {
+		add(axiom);
+	}
+	
+	/* (non-Javadoc)
+	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLNegativeDataPropertyAssertionAxiom)
+	 */
+	@Override
+	public void visit(OWLNegativeDataPropertyAssertionAxiom axiom) {
+		add(axiom);
+	}
+
+	/* (non-Javadoc)
+	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLDifferentIndividualsAxiom)
+	 */
+	@Override
+	public void visit(OWLDifferentIndividualsAxiom axiom) {
+		add(axiom);
 	}
 
 	/* (non-Javadoc)
@@ -196,22 +284,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	@Override
 	public void visit(OWLSubClassOfAxiom axiom) {
 		add(axiom);
-		if(inTBox || currentDepth < maxDepth){
-//			currentDepth++;
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
 			OWLClassExpression superClass = axiom.getSuperClass();
 			superClass.accept(this);
-//			currentDepth--;
+			currentDepth--;
 		}
-	}
-	
-	
-
-	/* (non-Javadoc)
-	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLNegativeObjectPropertyAssertionAxiom)
-	 */
-	@Override
-	public void visit(OWLNegativeObjectPropertyAssertionAxiom axiom) {
-		add(axiom);
 	}
 
 	/* (non-Javadoc)
@@ -236,6 +314,14 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	@Override
 	public void visit(OWLDisjointClassesAxiom axiom) {
 		add(axiom);
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
+			Set<OWLClassExpression> disjointClasses = axiom.getClassExpressions();
+			for (OWLClassExpression dis : disjointClasses) {
+				dis.accept(this);
+			}
+			currentDepth--;
+		}
 	}
 
 	/* (non-Javadoc)
@@ -244,6 +330,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	@Override
 	public void visit(OWLDataPropertyDomainAxiom axiom) {
 		add(axiom);
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
+			OWLClassExpression domain = axiom.getDomain();
+			domain.accept(this);
+			currentDepth--;
+		}
 	}
 
 	/* (non-Javadoc)
@@ -252,6 +344,26 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	@Override
 	public void visit(OWLObjectPropertyDomainAxiom axiom) {
 		add(axiom);
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
+			OWLClassExpression domain = axiom.getDomain();
+			domain.accept(this);
+			currentDepth--;
+		}
+	}
+	
+	/* (non-Javadoc)
+	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLSubObjectPropertyOfAxiom)
+	 */
+	@Override
+	public void visit(OWLSubObjectPropertyOfAxiom axiom) {
+		add(axiom);
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
+			OWLObjectPropertyExpression superProperty = axiom.getSuperProperty();
+			superProperty.accept(this);
+			currentDepth--;
+		}
 	}
 
 	/* (non-Javadoc)
@@ -260,22 +372,14 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	@Override
 	public void visit(OWLEquivalentObjectPropertiesAxiom axiom) {
 		add(axiom);
-	}
-
-	/* (non-Javadoc)
-	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLNegativeDataPropertyAssertionAxiom)
-	 */
-	@Override
-	public void visit(OWLNegativeDataPropertyAssertionAxiom axiom) {
-		add(axiom);
-	}
-
-	/* (non-Javadoc)
-	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLDifferentIndividualsAxiom)
-	 */
-	@Override
-	public void visit(OWLDifferentIndividualsAxiom axiom) {
-		add(axiom);
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
+			Set<OWLObjectPropertyExpression> properties = axiom.getProperties();
+			for (OWLObjectPropertyExpression prop : properties) {
+				prop.accept(this);
+			}
+			currentDepth--;
+		}
 	}
 
 	/* (non-Javadoc)
@@ -284,6 +388,14 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	@Override
 	public void visit(OWLDisjointDataPropertiesAxiom axiom) {
 		add(axiom);
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
+			Set<OWLDataPropertyExpression> properties = axiom.getProperties();
+			for (OWLDataPropertyExpression prop : properties) {
+				prop.accept(this);
+			}
+			currentDepth--;
+		}
 	}
 
 	/* (non-Javadoc)
@@ -292,6 +404,14 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	@Override
 	public void visit(OWLDisjointObjectPropertiesAxiom axiom) {
 		add(axiom);
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
+			Set<OWLObjectPropertyExpression> properties = axiom.getProperties();
+			for (OWLObjectPropertyExpression prop : properties) {
+				prop.accept(this);
+			}
+			currentDepth--;
+		}
 	}
 
 	/* (non-Javadoc)
@@ -300,6 +420,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	@Override
 	public void visit(OWLObjectPropertyRangeAxiom axiom) {
 		add(axiom);
+		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
+			currentDepth++;
+			OWLClassExpression range = axiom.getRange();
+			range.accept(this);
+			currentDepth--;
+		}
 	}
 
 	/* (non-Javadoc)
@@ -307,14 +433,6 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	 */
 	@Override
 	public void visit(OWLFunctionalObjectPropertyAxiom axiom) {
-		add(axiom);
-	}
-
-	/* (non-Javadoc)
-	 * @see org.semanticweb.owlapi.model.OWLAxiomVisitor#visit(org.semanticweb.owlapi.model.OWLSubObjectPropertyOfAxiom)
-	 */
-	@Override
-	public void visit(OWLSubObjectPropertyOfAxiom axiom) {
 		add(axiom);
 	}
 
@@ -629,5 +747,4 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLDeclarationAxiom axiom) {
 		add(axiom);
 	}
-
 }

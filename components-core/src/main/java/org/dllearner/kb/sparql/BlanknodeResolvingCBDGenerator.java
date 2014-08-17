@@ -25,6 +25,8 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 		String query = "prefix : <http://dl-learner.org/ontology/> "
 				+ "construct { ?s ?p ?o ; ?type ?s .} "
 				+ "where {  ?s ?p ?o .  bind( if(isIRI(?s),:sameIri,:sameBlank) as ?type )}";
+//				+ "where {  ?s ?p ?o . bind( if(isBlank(?s),:sameBlank,BNODE()) as ?type )}";
+	
 		qef = new QueryExecutionFactoryModel(model);
 		QueryExecution qe = qef.createQueryExecution(query);
 		extendedModel = qe.execConstruct();
@@ -71,22 +73,39 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 		if(depth < 1){
 			throw new IllegalArgumentException("Min depth for CBD is 1.");
 		}
-		StringBuilder constructTemplate = new StringBuilder("?x ?p ?o .");
-		for(int i = 1; i <= depth; i++){
-//			constructTemplate.append("?o").append(i-1).append(" ?p").append(i).append(" ?o").append(i).append(" .");
+		StringBuilder constructTemplate;
+		if(depth == 1 && resolveBlankNodes){
+			constructTemplate = new StringBuilder("?x ?p ?o .");
+		} else {
+			constructTemplate = new StringBuilder("?s0 ?p0 ?o0 .");
+			for(int i = 1; i < depth; i++){
+				constructTemplate.append("?o").append(i-1).append(" ?p").append(i).append(" ?o").append(i).append(" .");
+			}
+			if(resolveBlankNodes){
+				constructTemplate.append("?x ?p ?o .");
+			}
 		}
 		
-		StringBuilder triplesTemplate = new StringBuilder("?s0 ?p0 ?o0 .");
-		for(int i = 1; i < depth; i++){
-			triplesTemplate.append("OPTIONAL{").append("?o").append(i-1).append(" ?p").append(i).append(" ?o").append(i).append(" .");
-		}
-		if(resolveBlankNodes){
-			triplesTemplate.append("?o").append(depth-1).append("((!<x>|!<y>)/:sameBlank)* ?x . ?x ?p ?o .filter(!(?p in (:sameIri, :sameBlank)))");
-		}
-		for(int i = 1; i < depth; i++){
-			triplesTemplate.append("}");
-		}
 		
+		
+		
+		String blankNodeExpression = "((!<x>|!<y>)/!:sameIRI/:sameBlank)* ?x . ?x ?p ?o .filter(?p != :sameBlank)";
+		StringBuilder triplesTemplate;
+		if(depth == 1 && resolveBlankNodes){
+			triplesTemplate = new StringBuilder("?s0 " + blankNodeExpression);
+		} else {
+			triplesTemplate = new StringBuilder("?s0 ?p0 ?o0 .");
+			for(int i = 1; i < depth; i++){
+				triplesTemplate.append("OPTIONAL{").append("?o").append(i-1).append(" ?p").append(i).append(" ?o").append(i).append(" .");
+				triplesTemplate.append("FILTER(").append("?p").append(i).append("!=:sameBlank)");
+			}
+			if(resolveBlankNodes){
+				triplesTemplate.append("OPTIONAL{?o").append(depth-1).append(blankNodeExpression).append("}");
+			}
+			for(int i = 1; i < depth; i++){
+				triplesTemplate.append("}");
+			}
+		}
 		
 		StringBuilder queryString = new StringBuilder("prefix : <http://dl-learner.org/ontology/> ");
 		queryString.append("CONSTRUCT{").append(constructTemplate).append("}");

@@ -3,13 +3,15 @@
  */
 package org.dllearner.utilities;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.io.FileOutputStream;
 import java.util.Set;
 
+import org.dllearner.kb.sparql.BlanknodeResolvingCBDGenerator;
 import org.dllearner.utilities.owl.DLSyntaxObjectRenderer;
 import org.junit.Test;
 import org.semanticweb.owlapi.apibinding.OWLManager;
@@ -20,23 +22,21 @@ import org.semanticweb.owlapi.model.OWLDataFactory;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.NodeIterator;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.RDFNode;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
-import com.hp.hpl.jena.vocabulary.OWL;
-import com.hp.hpl.jena.vocabulary.RDF;
-import com.hp.hpl.jena.vocabulary.RDFS;
+
+import edu.stanford.nlp.util.Sets;
 
 /**
  * @author Lorenz Buehmann
  *
  */
 public class OWLAxiomCBDGeneratorTest {
+	
+	private static final Logger logger = LoggerFactory.getLogger(OWLAxiomCBDGeneratorTest.class);
 
 	/**
 	 * Test method for {@link org.dllearner.utilities.OWLAxiomCBDGenerator#getCBD(org.semanticweb.owlapi.model.OWLIndividual, int)}.
@@ -47,15 +47,11 @@ public class OWLAxiomCBDGeneratorTest {
 	public void testGetCBD() throws OWLOntologyCreationException, FileNotFoundException {
 		ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
 		
-//		File f = new File("../examples/sar/dump_cleaned_10.nt");
-//		Model model = ModelFactory.createDefaultModel();
-//		model.read(new FileInputStream(f), null, "TURTLE");
-//		getClasses(model);
-//		getPropertyTypes(model);
+		File f = new File("../examples/sar/dump_cleaned_10.nt");
+		Model model = ModelFactory.createDefaultModel();
+		model.read(new FileInputStream(f), null, "TURTLE");
 		
-		
-		File file = new File("../examples/sar/dump_cleaned_10.nt");
-//		file = new File("punning_bug.ttl");
+		File file = new File("../examples/sar/dump_cleaned.nt");
 		OWLOntologyManager man = OWLManager.createOWLOntologyManager();
 		OWLDataFactory df = man.getOWLDataFactory();
 		OWLOntology ontology = man.loadOntologyFromOntologyDocument(file);
@@ -67,123 +63,98 @@ public class OWLAxiomCBDGeneratorTest {
 		
 		
 		OWLAxiomCBDGenerator cbdGenerator = new OWLAxiomCBDGenerator(ontology);
-		Set<OWLAxiom> cbdAxioms = cbdGenerator.getCBD(df.getOWLNamedIndividual(IRI.create("http://bio2rdf.org/ra.challenge:1000000")), 2);
+		Set<OWLAxiom> cbdAxioms = cbdGenerator.getCBD(df.getOWLNamedIndividual(IRI.create("http://bio2rdf.org/ra.challenge:1000000")), 3);
+		
+		cbdAxioms = cbdGenerator.getCBD(df.getOWLNamedIndividual(IRI.create("http://bio2rdf.org/ra.challenge:1000000")), 4);
+		
+		cbdGenerator.setFetchCompleteRelatedTBox(true);
+		cbdAxioms = cbdGenerator.getCBD(df.getOWLNamedIndividual(IRI.create("http://bio2rdf.org/ra.challenge:1000000")), 4);
 	}
 	
-	private void getClasses(Model model){
-		//get all classes
-		NodeIterator iterator = model.listObjectsOfProperty(RDF.type);
-		while(iterator.hasNext()){
-			RDFNode object = iterator.next();
-			if(object.isURIResource()){
-				String uri = object.asResource().getURI();
-				if(!uri.startsWith(RDF.getURI()) 
-						&& !uri.startsWith(RDFS.getURI()) 
-						&& !uri.startsWith(OWL.getURI())){
-					System.out.println("<" + uri + "> <" + RDF.type.getURI() + "> <" + OWL.Class.getURI() + "> .");
-					
-				}
+	@Test
+	public void testCompareAxiomBasedCBDToTripleBasedCBD() throws Exception{
+		ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
+		
+		File file = new File("../examples/sar/dump_cleaned.nt");
+		File outputDir = new File("data");
+		outputDir.mkdir();
+		
+		System.out.println("Loading data...");
+		long start = System.currentTimeMillis();
+		// load into JENA model
+		Model model = ModelFactory.createDefaultModel();
+		model.read(new FileInputStream(file), null, "TURTLE");
+		
+		// load into OWL API ontology
+		OWLOntologyManager man = OWLManager.createOWLOntologyManager();
+		OWLDataFactory df = man.getOWLDataFactory();
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		model.write(baos, "TURTLE");
+		OWLOntology ontology = man.loadOntologyFromOntologyDocument(new ByteArrayInputStream(baos.toByteArray()));
+//		OWLOntology ontology = man.loadOntologyFromOntologyDocument(file);
+		long end = System.currentTimeMillis();
+		System.out.println("...done in " + (end - start) + "ms");
+		
+		OWLAxiomCBDGenerator axiomCBDGenerator = new OWLAxiomCBDGenerator(ontology);
+//		axiomCBDGenerator.setFetchCompleteRelatedTBox(true);
+		BlanknodeResolvingCBDGenerator tripleCBDGenerator = new BlanknodeResolvingCBDGenerator(model);
+		
+		String resourceURI = "http://bio2rdf.org/ra.challenge:1000000";
+		
+		System.out.println("Comparing CBDs...");
+		for(int depth = 1; depth <= 5; depth++){
+			System.out.println("#############CBD-" + depth);
+			
+			// compute CBD based on OWL axioms
+			start = System.currentTimeMillis();
+			Set<OWLAxiom> cbdAxioms = axiomCBDGenerator
+					.getCBD(df.getOWLNamedIndividual(IRI.create(resourceURI)), depth);
+			OWLOntology ont1 = man.createOntology(cbdAxioms);
+			end = System.currentTimeMillis();
+			System.out.println("Axiom based CBD took " + (end - start) + "ms");
 
-			}
+			// compute CBD based on triples and convert to OWL API axioms
+			start = System.currentTimeMillis();
+			Model cbd = tripleCBDGenerator.getConciseBoundedDescription(resourceURI, depth, true);
+			baos = new ByteArrayOutputStream();
+			cbd.write(baos, "TURTLE");
+			OWLOntology ont2 = man.loadOntologyFromOntologyDocument(new ByteArrayInputStream(baos.toByteArray())); 
+			end = System.currentTimeMillis();
+			System.out.println("Triple based CBD took " + (end - start) + "ms");
+			cbd.write(new FileOutputStream(new File(outputDir, "cbd-" + depth + ".ttl")), "TURTLE", "http://bio2rdf.org/");
+			
+			// compare both ontologies
+			System.out.println("Classes: ");
+			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getClassesInSignature(), ont2.getClassesInSignature()));
+			System.out.println("\t\t\tOnly axiom  based:" + Sets.diff(ont1.getClassesInSignature(), ont2.getClassesInSignature()));
+			System.out.println("\t\t\tOnly triple based:" + Sets.diff(ont2.getClassesInSignature(), ont1.getClassesInSignature()));
+			System.out.println("Object Properties: ");
+			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getObjectPropertiesInSignature(), ont2.getObjectPropertiesInSignature()));
+			System.out.println("\t\t\tOnly axiom  based:" + Sets.diff(ont1.getObjectPropertiesInSignature(), ont2.getObjectPropertiesInSignature()));
+			System.out.println("\t\t\tOnly triple based:" + Sets.diff(ont2.getObjectPropertiesInSignature(), ont1.getObjectPropertiesInSignature()));
+			System.out.println("Data Properties: ");
+			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getDataPropertiesInSignature(), ont2.getDataPropertiesInSignature()));
+			System.out.println("\t\t\tOnly axiom  based:" + Sets.diff(ont1.getDataPropertiesInSignature(), ont2.getDataPropertiesInSignature()));
+			System.out.println("\t\t\tOnly triple based:" + Sets.diff(ont2.getDataPropertiesInSignature(), ont1.getDataPropertiesInSignature()));
+			System.out.println("Logical axioms: ");
+			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getLogicalAxioms(), ont2.getLogicalAxioms()));
+			System.out.println("\t\t\tOnly axiom  based:" + Sets.diff(ont1.getLogicalAxioms(), ont2.getLogicalAxioms()));
+			System.out.println("\t\t\tOnly triple based:" + Sets.diff(ont2.getLogicalAxioms(), ont1.getLogicalAxioms()));
 		}
-		iterator.close();
 	}
 	
-	private void getPropertyTypes(Model model){
-		Set<Property> objectProperties = new HashSet<Property>();
-		Set<Property> dataProperties = new HashSet<Property>();
-		Set<Property> annotationProperties = new HashSet<Property>();
+	@Test
+	public void testGetCBD2() throws OWLOntologyCreationException, FileNotFoundException {
+		ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
 		
-		//get all properties
-		Set<Property> properties = new HashSet<Property>();
-		StmtIterator iterator = model.listStatements();
-		while(iterator.hasNext()){
-			Statement st = iterator.next();
-			Property predicate = st.getPredicate();
-			if(!predicate.getURI().startsWith(RDF.getURI()) 
-					&& !predicate.getURI().startsWith(RDFS.getURI()) 
-					&& !predicate.getURI().startsWith(OWL.getURI())){
-				properties.add(predicate);
-			}
-		}
-		iterator.close();
+		OWLOntologyManager man = OWLManager.createOWLOntologyManager();
+		OWLDataFactory df = man.getOWLDataFactory();
+		OWLOntology ontology = man.loadOntologyFromOntologyDocument(new File("../examples/swore/swore.rdf"));
 		
-		boolean useLinkedData = true;
-		boolean useInstanceData = true;
-		Iterator<Property> propertiesIter = properties.iterator();
-		while(propertiesIter.hasNext()) {
-			Property property = propertiesIter.next();
-			
-			//check for type in model
-			boolean declared = false;
-			if(model.contains(property, RDF.type, OWL.ObjectProperty)){
-				objectProperties.add(property);
-				declared = true;
-			} else if(model.contains(property, RDF.type, OWL.DatatypeProperty)){
-				dataProperties.add(property);
-				declared = true;
-			} else if(model.contains(property, RDF.type, OWL.AnnotationProperty)){
-				annotationProperties.add(property);
-				declared = true;
-			}
-			
-			//use Linked Data
-			if(useLinkedData && !declared){
-				try {
-					Model ldModel = ModelFactory.createDefaultModel();
-					ldModel.read(property.getURI());
-					
-					if(ldModel.contains(property, RDF.type, OWL.ObjectProperty)){
-						objectProperties.add(property);
-						declared = true;
-					} else if(ldModel.contains(property, RDF.type, OWL.DatatypeProperty)){
-						dataProperties.add(property);
-						declared = true;
-					} else if(model.contains(property, RDF.type, OWL.AnnotationProperty)){
-						annotationProperties.add(property);
-						declared = true;
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				} 
-			}
-			
-			//use instance data
-			if(useInstanceData && !declared){
-				NodeIterator objectsIterator = model.listObjectsOfProperty(property);
-				boolean isObjectProperty = false;
-				boolean isDataProperty = false;
-				while(objectsIterator.hasNext()){
-					RDFNode object = objectsIterator.next();
-					
-					if(object.isLiteral()){
-						isDataProperty = true;
-					} else if(object.isResource()){
-						isObjectProperty = true;
-					}
-				}
-				objectsIterator.close();
-				
-				if(isObjectProperty && !isDataProperty){
-					objectProperties.add(property);
-				} else if(isDataProperty && !isObjectProperty){
-					dataProperties.add(property);
-				}
-			}
-		}
-		
-		for (Property property : dataProperties) {
-			model.add(property, RDF.type, OWL.DatatypeProperty);
-			System.out.println("<" + property.getURI() + "> <" + RDF.type.getURI() + "> <" + OWL.DatatypeProperty.getURI() + "> .");
-		}
-		for (Property property : objectProperties) {
-			model.add(property, RDF.type, OWL.ObjectProperty);
-			System.out.println("<" + property.getURI() + "> <" + RDF.type.getURI() + "> <" + OWL.ObjectProperty.getURI() + "> .");
-		}
-		for (Property property : annotationProperties) {
-			model.add(property, RDF.type, OWL.AnnotationProperty);
-			System.out.println("<" + property.getURI() + "> <" + RDF.type.getURI() + "> <" + OWL.AnnotationProperty.getURI() + "> .");
-		}
+		OWLAxiomCBDGenerator cbdGenerator = new OWLAxiomCBDGenerator(ontology);
+		Set<OWLAxiom> cbdAxioms = cbdGenerator.getCBD(df.getOWLNamedIndividual(IRI.create("http://ns.softwiki.de/req/CreateModernGUIDesign")), 3);
 	}
+	
+	
 
 }

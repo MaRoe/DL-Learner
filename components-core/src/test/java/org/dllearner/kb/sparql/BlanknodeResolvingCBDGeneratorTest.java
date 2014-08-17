@@ -82,5 +82,20 @@ public class BlanknodeResolvingCBDGeneratorTest {
 		
 		cbd.write(System.out, "TURTLE" , "http://bio2rdf.org/ra.challenge:");
 	}
+	
+	@Test
+	public void test(){
+		String s = "@prefix : <http://ex.org/> . @prefix owl: <http://www.w3.org/2002/07/owl#> . :a :p :b . :b :p :c . :c a [owl:intersectionOf(:o1 :o2)] .";
+		
+		Model model = ModelFactory.createDefaultModel();
+		model.read(new ByteArrayInputStream(s.getBytes()), null, "TURTLE");
+		model.write(System.out, "TURTLE" , "http://ex.org/");
+		
+		BlanknodeResolvingCBDGenerator cbdGenerator = new BlanknodeResolvingCBDGenerator(model);
+		cbdGenerator.getExtendedModel().write(System.out, "TURTLE" , "http://ex.org/");
+		
+		Model cbd = cbdGenerator.getConciseBoundedDescription("http://ex.org/a", 2);
+		cbd.write(System.out, "TURTLE" , "http://ex.org/");
+	}
 
 }
