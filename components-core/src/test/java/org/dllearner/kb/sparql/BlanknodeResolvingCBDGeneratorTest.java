@@ -85,7 +85,7 @@ public class BlanknodeResolvingCBDGeneratorTest {
 	
 	@Test
 	public void test(){
-		String s = "@prefix : <http://ex.org/> . @prefix owl: <http://www.w3.org/2002/07/owl#> . :a :p :b . :b :p :c . :c a [owl:intersectionOf(:o1 :o2)] .";
+		String s = "@prefix : <http://ex.org/> . @prefix owl: <http://www.w3.org/2002/07/owl#> . :a :p :b . :b :p :c . :b a [owl:intersectionOf(:B1 :B2)] . :c a [owl:intersectionOf(:C1 :C2)] .";
 		
 		Model model = ModelFactory.createDefaultModel();
 		model.read(new ByteArrayInputStream(s.getBytes()), null, "TURTLE");
@@ -94,8 +94,12 @@ public class BlanknodeResolvingCBDGeneratorTest {
 		BlanknodeResolvingCBDGenerator cbdGenerator = new BlanknodeResolvingCBDGenerator(model);
 		cbdGenerator.getExtendedModel().write(System.out, "TURTLE" , "http://ex.org/");
 		
-		Model cbd = cbdGenerator.getConciseBoundedDescription("http://ex.org/a", 2);
+		Model cbd = cbdGenerator.getConciseBoundedDescription("http://ex.org/a", 3);
 		cbd.write(System.out, "TURTLE" , "http://ex.org/");
+		
+		cbd = cbdGenerator.getConciseBoundedDescription2("http://ex.org/a", 10);
+		cbd.write(System.out, "TURTLE" , "http://ex.org/");
+		
 	}
 
 }

@@ -47,22 +47,13 @@ public class OWLAxiomCBDGeneratorTest {
 	public void testGetCBD() throws OWLOntologyCreationException, FileNotFoundException {
 		ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
 		
-<<<<<<< HEAD
 //		File f = new File("../examples/sar/dump_complete.nt");
 //		Model model = ModelFactory.createDefaultModel();
 //		model.read(new FileInputStream(f), null, "TURTLE");
 //		getClasses(model);
 //		getPropertyTypes(model);
 		
-		
-		File file = new File("../examples/sar/dump_cleaned_10.nt");
-=======
-		File f = new File("../examples/sar/dump_cleaned_10.nt");
-		Model model = ModelFactory.createDefaultModel();
-		model.read(new FileInputStream(f), null, "TURTLE");
-		
 		File file = new File("../examples/sar/dump_cleaned.nt");
->>>>>>> de37ad91cdf9a15adf14c5372ddef578376a341e
 		OWLOntologyManager man = OWLManager.createOWLOntologyManager();
 		OWLDataFactory df = man.getOWLDataFactory();
 		OWLOntology ontology = man.loadOntologyFromOntologyDocument(file);
@@ -136,19 +127,19 @@ public class OWLAxiomCBDGeneratorTest {
 			
 			// compare both ontologies
 			System.out.println("Classes: ");
-			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getClassesInSignature(), ont2.getClassesInSignature()));
+//			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getClassesInSignature(), ont2.getClassesInSignature()));
 			System.out.println("\t\t\tOnly axiom  based:" + Sets.diff(ont1.getClassesInSignature(), ont2.getClassesInSignature()));
 			System.out.println("\t\t\tOnly triple based:" + Sets.diff(ont2.getClassesInSignature(), ont1.getClassesInSignature()));
 			System.out.println("Object Properties: ");
-			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getObjectPropertiesInSignature(), ont2.getObjectPropertiesInSignature()));
+//			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getObjectPropertiesInSignature(), ont2.getObjectPropertiesInSignature()));
 			System.out.println("\t\t\tOnly axiom  based:" + Sets.diff(ont1.getObjectPropertiesInSignature(), ont2.getObjectPropertiesInSignature()));
 			System.out.println("\t\t\tOnly triple based:" + Sets.diff(ont2.getObjectPropertiesInSignature(), ont1.getObjectPropertiesInSignature()));
 			System.out.println("Data Properties: ");
-			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getDataPropertiesInSignature(), ont2.getDataPropertiesInSignature()));
+//			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getDataPropertiesInSignature(), ont2.getDataPropertiesInSignature()));
 			System.out.println("\t\t\tOnly axiom  based:" + Sets.diff(ont1.getDataPropertiesInSignature(), ont2.getDataPropertiesInSignature()));
 			System.out.println("\t\t\tOnly triple based:" + Sets.diff(ont2.getDataPropertiesInSignature(), ont1.getDataPropertiesInSignature()));
 			System.out.println("Logical axioms: ");
-			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getLogicalAxioms(), ont2.getLogicalAxioms()));
+//			System.out.println("\t\t\tOverlap:" + Sets.intersection(ont1.getLogicalAxioms(), ont2.getLogicalAxioms()));
 			System.out.println("\t\t\tOnly axiom  based:" + Sets.diff(ont1.getLogicalAxioms(), ont2.getLogicalAxioms()));
 			System.out.println("\t\t\tOnly triple based:" + Sets.diff(ont2.getLogicalAxioms(), ont1.getLogicalAxioms()));
 		}
