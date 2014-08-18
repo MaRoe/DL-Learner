@@ -8,6 +8,7 @@ import java.util.List;
 import org.aksw.jena_sparql_api.model.QueryExecutionFactoryModel;
 
 import com.hp.hpl.jena.query.ParameterizedSparqlString;
+import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryExecution;
 import com.hp.hpl.jena.query.QueryFactory;
 import com.hp.hpl.jena.query.Syntax;
@@ -22,6 +23,8 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 	private QueryExecutionFactoryModel qef;
 	boolean resolveBlankNodes = true;
 	private Model extendedModel;
+	
+	Query query;
 
 	public BlanknodeResolvingCBDGenerator(Model model) {
 		String query = "prefix : <http://dl-learner.org/ontology/> "
@@ -105,9 +108,6 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 			}
 		}
 		
-		
-		
-		
 		String blankNodeExpression = "((!<x>|!<y>)/:sameBlank)* ?x . ?x ?p ?o .filter(?p NOT IN(:sameIRI, :sameBlank))";
 		StringBuilder triplesTemplate;
 		if(depth == 1 && resolveBlankNodes){
@@ -135,11 +135,20 @@ public class BlanknodeResolvingCBDGenerator implements ConciseBoundedDescription
 		
 		ParameterizedSparqlString query = new ParameterizedSparqlString(queryString.toString());
 		query.setIri("s0", resourceURI);
-//		System.out.println(query.asQuery());
+		
+		this.query = query.asQuery();
+//		System.out.println(query);
 		QueryExecution qe = qef.createQueryExecution(query.toString());
 		Model cbd = qe.execConstruct();
 		qe.close();
 		return cbd;
+	}
+	
+	/**
+	 * @return the query
+	 */
+	public Query getQuery() {
+		return query;
 	}
 
 	/* (non-Javadoc)

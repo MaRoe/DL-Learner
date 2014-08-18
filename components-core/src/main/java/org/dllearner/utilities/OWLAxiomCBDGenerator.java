@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.dllearner.reasoning.OWLPunningDetector;
+import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAnnotationAssertionAxiom;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyDomainAxiom;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyRangeAxiom;
@@ -85,6 +86,7 @@ import org.semanticweb.owlapi.model.OWLSymmetricObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLTransitiveObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.SWRLRule;
 
+import uk.ac.manchester.cs.owl.owlapi.OWLClassImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLNamedIndividualImpl;
 
 /**
@@ -113,10 +115,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	private OWLObjectProperty currentObjectProperty;
 	private OWLDataProperty currentDataProperty;
 	
-	private Set<OWLClass> punningClasses;
+	private Set<IRI> punningClasses;
 	
 	public OWLAxiomCBDGenerator(OWLOntology ontology) {
 		this.ontology = ontology;
+		
+		punningClasses = OWLPunningDetector.getPunningIRIs(ontology);
 	}
 	
 	public Set<OWLAxiom> getCBD(OWLIndividual ind, int maxDepth){
@@ -126,8 +130,6 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 		visitedClasses = new HashSet<OWLClass>();
 		visitedProperties = new HashSet<OWLProperty>();
 		visitedIndividuals = new HashSet<OWLIndividual>();
-		
-		punningClasses = OWLPunningDetector.getPunningClasses(ontology);
 		
 		// we start with the directly related axioms, i.e. depth 1
 		currentDepth = 1;
@@ -141,6 +143,13 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	 */
 	public void setFetchCompleteRelatedTBox(boolean fetchCompleteRelatedTBox) {
 		this.fetchCompleteRelatedTBox = fetchCompleteRelatedTBox;
+	}
+	
+	/**
+	 * @param allowPunning the allowPunning to set
+	 */
+	public void setAllowPunning(boolean allowPunning) {
+		this.allowPunning = allowPunning;
 	}
 	
 	private String indent(){
@@ -168,7 +177,7 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 			for (OWLClassAxiom ax : axioms) {
 				ax.accept(this);
 			}
-			if(allowPunning && punningClasses.contains(ce)){
+			if(allowPunning && punningClasses.contains(ce.getIRI())){
 				boolean inTBoxBefore = inTBox;
 				inTBox = true;
 				new OWLNamedIndividualImpl(ce.getIRI()).accept(this);
@@ -188,6 +197,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 			Set<OWLIndividualAxiom> axioms = ontology.getAxioms(individual);
 			for (OWLIndividualAxiom ax : axioms) {
 				ax.accept(this);
+			}
+			if(allowPunning && punningClasses.contains(individual.getIRI())){
+				boolean inTBoxBefore = inTBox;
+				inTBox = true;
+				new OWLClassImpl(individual.getIRI()).accept(this);
+				inTBox = inTBoxBefore;
 			}
 		}
 	}
