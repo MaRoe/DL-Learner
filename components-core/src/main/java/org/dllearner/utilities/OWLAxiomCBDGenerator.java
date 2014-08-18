@@ -6,6 +6,7 @@ package org.dllearner.utilities;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.dllearner.reasoning.OWLPunningDetector;
 import org.semanticweb.owlapi.model.OWLAnnotationAssertionAxiom;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyDomainAxiom;
 import org.semanticweb.owlapi.model.OWLAnnotationPropertyRangeAxiom;
@@ -84,6 +85,8 @@ import org.semanticweb.owlapi.model.OWLSymmetricObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLTransitiveObjectPropertyAxiom;
 import org.semanticweb.owlapi.model.SWRLRule;
 
+import uk.ac.manchester.cs.owl.owlapi.OWLNamedIndividualImpl;
+
 /**
  * Generates Concise Bounded Descriptions in the OWL axiom level.
  * @author Lorenz Buehmann
@@ -104,10 +107,13 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	
 	private boolean fetchCompleteRelatedTBox = false;
 	private boolean inTBox = false;
+	private boolean allowPunning = true;
 	
 	private OWLClass currentClass;
 	private OWLObjectProperty currentObjectProperty;
 	private OWLDataProperty currentDataProperty;
+	
+	private Set<OWLClass> punningClasses;
 	
 	public OWLAxiomCBDGenerator(OWLOntology ontology) {
 		this.ontology = ontology;
@@ -120,6 +126,8 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 		visitedClasses = new HashSet<OWLClass>();
 		visitedProperties = new HashSet<OWLProperty>();
 		visitedIndividuals = new HashSet<OWLIndividual>();
+		
+		punningClasses = OWLPunningDetector.getPunningClasses(ontology);
 		
 		// we start with the directly related axioms, i.e. depth 1
 		currentDepth = 1;
@@ -159,6 +167,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 			Set<OWLClassAxiom> axioms = ontology.getAxioms(ce);
 			for (OWLClassAxiom ax : axioms) {
 				ax.accept(this);
+			}
+			if(allowPunning && punningClasses.contains(ce)){
+				boolean inTBoxBefore = inTBox;
+				inTBox = true;
+				new OWLNamedIndividualImpl(ce.getIRI()).accept(this);
+				inTBox = inTBoxBefore;
 			}
 		}
 	}
@@ -245,7 +259,7 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 			property.accept(this);
 			currentDepth--;
 		}
-		if(inTBox || currentDepth < maxDepth){
+		if((inTBox && fetchCompleteRelatedTBox) || currentDepth < maxDepth){
 			currentDepth++;
 			//get the next hop based on the object
 			OWLIndividual object = axiom.getObject();

@@ -3,10 +3,17 @@
  */
 package org.dllearner.reasoning;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.dllearner.core.owl.NamedClass;
 import org.dllearner.core.owl.ObjectProperty;
 import org.semanticweb.owlapi.model.IRI;
+import org.semanticweb.owlapi.model.OWLClass;
+import org.semanticweb.owlapi.model.OWLNamedIndividual;
 import org.semanticweb.owlapi.model.OWLOntology;
+
+import uk.ac.manchester.cs.owl.owlapi.OWLNamedIndividualImpl;
 
 /**
  * @author Lorenz Buehmann
@@ -39,6 +46,28 @@ public class OWLPunningDetector {
 		boolean isClass = ontology.getClassesInSignature().contains(ontology.getOWLOntologyManager().getOWLDataFactory().getOWLClass(iri));
 		boolean isIndividual = ontology.getIndividualsInSignature().contains(ontology.getOWLOntologyManager().getOWLDataFactory().getOWLNamedIndividual(iri));
 		return isClass && isIndividual;
+	}
+	
+	/**
+	 * Returns the classes of the ontology that are also used as individuals, i.e. types of other classes.
+	 * @param ontology
+	 * @param iri
+	 * @return
+	 */
+	public static Set<OWLClass> getPunningClasses(OWLOntology ontology){
+		Set<OWLClass> classes = new HashSet<OWLClass>();
+		for (OWLClass cls : ontology.getClassesInSignature()) {
+			if(ontology.getIndividualsInSignature().contains(new OWLNamedIndividualImpl(cls.getIRI()))){
+				classes.add(cls);
+			}
+//			for (OWLNamedIndividual ind : ontology.getIndividualsInSignature()) {
+//				if(cls.getIRI().equals(ind.getIRI())){
+//					classes.add(cls);
+//					break;
+//				}
+//			}
+		}
+		return classes;
 	}
 	
 	/**
