@@ -21,17 +21,25 @@ import org.semanticweb.owlapi.io.StringDocumentSource;
 import org.semanticweb.owlapi.io.ToStringRenderer;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAxiom;
+import org.semanticweb.owlapi.model.OWLClass;
 import org.semanticweb.owlapi.model.OWLDataFactory;
+import org.semanticweb.owlapi.model.OWLDisjointClassesAxiom;
 import org.semanticweb.owlapi.model.OWLNamedIndividual;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
+import org.semanticweb.owlapi.reasoner.InferenceType;
+import org.semanticweb.owlapi.reasoner.NodeSet;
+import org.semanticweb.owlapi.reasoner.OWLReasoner;
+import org.semanticweb.owlapi.util.InferredAxiomGenerator;
+import org.semanticweb.owlapi.util.InferredDisjointClassesAxiomGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import uk.ac.manchester.cs.owlapi.modularity.ModuleType;
 import uk.ac.manchester.cs.owlapi.modularity.SyntacticLocalityModuleExtractor;
 
+import com.clarkparsia.pellet.owlapiv3.PelletReasonerFactory;
 import com.google.common.base.Charsets;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -115,7 +123,8 @@ public class OWLAxiomCBDGeneratorTest {
 				+ ":a :p :b . ";
 		Set<OWLAxiom> referenceAxioms = new HashSet<OWLAxiom>(man.loadOntologyFromOntologyDocument(new StringDocumentSource(s)).getLogicalAxioms());
 		Set<OWLAxiom> cbdAxioms = cbdGenerator.getCBD(ind, 1);
-		Assert.assertTrue(referenceAxioms.equals(cbdAxioms));
+		Assert.assertTrue("Only in CBD: " + Sets.diff(cbdAxioms, referenceAxioms) + "\nOnly in Reference:" + Sets.diff(referenceAxioms, cbdAxioms).toString(),
+				referenceAxioms.equals(cbdAxioms));
 		
 		// depth 2
 		s = "@prefix : <http://ex.org/> . "
@@ -126,11 +135,14 @@ public class OWLAxiomCBDGeneratorTest {
 						+ ":b a [owl:intersectionOf(:B1 :B2)] . ";
 		referenceAxioms = new HashSet<OWLAxiom>(man.loadOntologyFromOntologyDocument(new StringDocumentSource(s)).getLogicalAxioms());
 		cbdAxioms = cbdGenerator.getCBD(ind, 2);
-		Assert.assertTrue(referenceAxioms.equals(cbdAxioms));
+		Assert.assertTrue("Only in CBD: " + Sets.diff(cbdAxioms, referenceAxioms) + "\nOnly in Reference:" + Sets.diff(referenceAxioms, cbdAxioms).toString(),
+				referenceAxioms.equals(cbdAxioms));
 		
 		// depth 3
+		referenceAxioms = new HashSet<OWLAxiom>(ontology.getLogicalAxioms());
 		cbdAxioms = cbdGenerator.getCBD(ind, 3);
-		Assert.assertTrue(ontology.getLogicalAxioms().equals(cbdAxioms));
+		Assert.assertTrue("Only in CBD: " + Sets.diff(cbdAxioms, referenceAxioms) + "\nOnly in Reference:" + Sets.diff(referenceAxioms, cbdAxioms).toString(),
+				referenceAxioms.equals(cbdAxioms));
 	}
 	
 	/**
@@ -246,7 +258,7 @@ public class OWLAxiomCBDGeneratorTest {
 				referenceAxioms.equals(cbdAxioms));
 	}
 	
-	@Test
+//	@Test
 	public void testCompareAxiomBasedCBDToTripleBasedCBD() throws Exception{
 		ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
 		
@@ -274,13 +286,13 @@ public class OWLAxiomCBDGeneratorTest {
 		
 		OWLAxiomCBDGenerator axiomCBDGenerator = new OWLAxiomCBDGenerator(ontology);
 		axiomCBDGenerator.setAllowPunning(true);
-		axiomCBDGenerator.setFetchCompleteRelatedTBox(true);
+//		axiomCBDGenerator.setFetchCompleteRelatedTBox(true);
 		BlanknodeResolvingCBDGenerator tripleCBDGenerator = new BlanknodeResolvingCBDGenerator(model);
 		
 		String resourceURI = "http://bio2rdf.org/ra.challenge:1000000";
 		
 		System.out.println("Comparing CBDs...");
-		for(int depth = 1; depth <= 8; depth++){
+		for(int depth = 1; depth <= 4; depth++){
 			System.out.println("#############CBD-" + depth);
 			
 			// compute CBD based on OWL axioms
@@ -342,5 +354,53 @@ public class OWLAxiomCBDGeneratorTest {
 		
 		OWLAxiomCBDGenerator cbdGenerator = new OWLAxiomCBDGenerator(ontology);
 		Set<OWLAxiom> cbdAxioms = cbdGenerator.getCBD(df.getOWLNamedIndividual(IRI.create("http://ns.softwiki.de/req/CreateModernGUIDesign")), 3);
+	}
+	
+	/**
+	 * Test method for {@link org.dllearner.utilities.OWLAxiomCBDGenerator#getCBD(org.semanticweb.owlapi.model.OWLIndividual, int)}.
+	 * @throws OWLOntologyCreationException 
+	 * @throws FileNotFoundException 
+	 */
+	@Test
+	public void testGetCBDWithNegation() throws OWLOntologyCreationException, FileNotFoundException {
+		ToStringRenderer.getInstance().setRenderer(new DLSyntaxObjectRenderer());
+		
+		String s = "@prefix : <http://ex.org/> . "
+				+ "@prefix owl: <http://www.w3.org/2002/07/owl#> . "
+				+ ":p a owl:ObjectProperty ."
+				+ ":C a owl:Class . :D a owl:Class .:E a owl:Class .:F a owl:Class . :E_sub a owl:Class ."
+				+ ":a a :C . "
+				+ ":C rdfs:subClassOf :D . :D owl:disjointWith :E ."
+				+ ":E rdfs:subClassOf :F . "
+				+ ":E_sub rdfs:subClassOf :E .";
+		
+		OWLOntologyManager man = OWLManager.createOWLOntologyManager();
+		OWLDataFactory df = man.getOWLDataFactory();
+		OWLOntology ontology = man.loadOntologyFromOntologyDocument(new StringDocumentSource(s));
+		OWLReasoner reasoner = PelletReasonerFactory.getInstance().createNonBufferingReasoner(ontology);
+		reasoner.precomputeInferences(InferenceType.CLASS_ASSERTIONS, InferenceType.OBJECT_PROPERTY_ASSERTIONS);
+		
+		OWLNamedIndividual ind = df.getOWLNamedIndividual(IRI.create("http://ex.org/a"));
+		
+		//compute CBD
+		OWLAxiomCBDGenerator cbdGenerator = new OWLAxiomCBDGenerator(ontology);
+		cbdGenerator.setFetchCompleteRelatedTBox(true);
+		Set<OWLAxiom> cbdAxioms = cbdGenerator.getCBD(ind, 10);
+		OWLReasoner cbdReasoner = PelletReasonerFactory.getInstance().createNonBufferingReasoner(man.createOntology(cbdAxioms));
+		
+		//compare the types of individual <a>
+		Set<OWLClass> types = reasoner.getTypes(ind, false).getFlattened();
+		Set<OWLClass> cbdTypes = cbdReasoner.getTypes(ind, false).getFlattened();
+		Assert.assertTrue(types.equals(cbdTypes));
+		
+		//for each type, check if all inferred disjoint classes exist in the CBD
+		for (OWLClass type : types) {
+			System.out.println(type);
+			Set<OWLClass> disjointClasses = reasoner.getDisjointClasses(type).getFlattened();
+			Set<OWLClass> cbdDisjointClasses = cbdReasoner.getDisjointClasses(type).getFlattened();
+			System.out.println("Reference:" + disjointClasses);
+			System.out.println("CBD:" + cbdDisjointClasses);
+			Assert.assertTrue(disjointClasses.equals(cbdDisjointClasses));
+		}
 	}
 }
