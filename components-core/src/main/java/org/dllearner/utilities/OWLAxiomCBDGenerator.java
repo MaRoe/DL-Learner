@@ -90,7 +90,7 @@ import uk.ac.manchester.cs.owl.owlapi.OWLClassImpl;
 import uk.ac.manchester.cs.owl.owlapi.OWLNamedIndividualImpl;
 
 /**
- * Generates Concise Bounded Descriptions in the OWL axiom level.
+ * Generates Concise Bounded Descriptions on the OWL axiom level.
  * @author Lorenz Buehmann
  *
  */
@@ -117,6 +117,8 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	
 	private Set<IRI> punningClasses;
 	
+	private boolean subsumptionDown = false;
+	
 	public OWLAxiomCBDGenerator(OWLOntology ontology) {
 		this.ontology = ontology;
 		
@@ -131,14 +133,16 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 		visitedProperties = new HashSet<OWLProperty>();
 		visitedIndividuals = new HashSet<OWLIndividual>();
 		
-		// we start with the directly related axioms, i.e. depth 1
-		currentDepth = 1;
+		// we start with the directly related axioms
+		currentDepth = 0;
 		ind.accept(this);
 		
 		return cbdAxioms;
 	}
 	
 	/**
+	 * If enabled, all TBox axioms that are related to classes and properties
+	 * and useful for reasoning are retrieved independently from the CBD maximum depth.
 	 * @param fetchCompleteRelatedTBox the fetchCompleteRelatedTBox to set
 	 */
 	public void setFetchCompleteRelatedTBox(boolean fetchCompleteRelatedTBox) {
@@ -146,6 +150,7 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	}
 	
 	/**
+	 * If enabled, ABox axioms for classes are also retrieved.
 	 * @param allowPunning the allowPunning to set
 	 */
 	public void setAllowPunning(boolean allowPunning) {
@@ -169,18 +174,33 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	 * @see org.semanticweb.owlapi.model.OWLClassExpressionVisitor#visit(org.semanticweb.owlapi.model.OWLClass)
 	 */
 	@Override
-	public void visit(OWLClass ce) {
-		if(!visitedClasses.contains(ce)){
-			visitedClasses.add(ce);
+	public void visit(OWLClass cls) {
+		if(!visitedClasses.contains(cls)){
+			visitedClasses.add(cls);
 			
-			Set<OWLClassAxiom> axioms = ontology.getAxioms(ce);
+			currentDepth++;
+			Set<OWLClassAxiom> axioms = new HashSet<OWLClassAxiom>();//.getAxioms(cls);
+			if(subsumptionDown){
+				axioms.addAll(ontology.getSubClassAxiomsForSuperClass(cls));
+			} else {
+				axioms.addAll(ontology.getSubClassAxiomsForSubClass(cls));
+			}
+			axioms.addAll(ontology.getEquivalentClassesAxioms(cls));
+			axioms.addAll(ontology.getDisjointClassesAxioms(cls));
+			axioms.addAll(ontology.getDisjointUnionAxioms(cls));
+			
+//			axioms = ontology.getAxioms(cls);
+//			System.out.println(axioms);
 			for (OWLClassAxiom ax : axioms) {
 				ax.accept(this);
 			}
-			if(allowPunning && punningClasses.contains(ce.getIRI())){
+			currentDepth--;
+			
+			// handle punning if enabled
+			if(allowPunning && punningClasses.contains(cls.getIRI())){
 				boolean inTBoxBefore = inTBox;
 				inTBox = true;
-				new OWLNamedIndividualImpl(ce.getIRI()).accept(this);
+				new OWLNamedIndividualImpl(cls.getIRI()).accept(this);
 				inTBox = inTBoxBefore;
 			}
 		}
@@ -194,10 +214,14 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 		if(!visitedIndividuals.contains(individual)){
 			visitedIndividuals.add(individual);
 			
+			currentDepth++;
 			Set<OWLIndividualAxiom> axioms = ontology.getAxioms(individual);
 			for (OWLIndividualAxiom ax : axioms) {
 				ax.accept(this);
 			}
+			currentDepth--;
+			
+			// handle punning if enabled
 			if(allowPunning && punningClasses.contains(individual.getIRI())){
 				boolean inTBoxBefore = inTBox;
 				inTBox = true;
@@ -251,12 +275,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLClassAssertionAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			boolean wasInTBox = inTBox;
 			inTBox = true;
 			OWLClassExpression ce = axiom.getClassExpression();
 			ce.accept(this);
-			currentDepth--;
+//			currentDepth--;
 			inTBox = wasInTBox;
 		}
 	}
@@ -268,18 +292,18 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLObjectPropertyAssertionAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			//get schema axioms for the property
 			OWLObjectPropertyExpression property = axiom.getProperty();
 			property.accept(this);
-			currentDepth--;
+//			currentDepth--;
 		}
 		if((inTBox && fetchCompleteRelatedTBox) || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			//get the next hop based on the object
 			OWLIndividual object = axiom.getObject();
 			object.accept(this);
-			currentDepth--;
+//			currentDepth--;
 		}
 	}
 	
@@ -314,10 +338,13 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLSubClassOfAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
-			OWLClassExpression superClass = axiom.getSuperClass();
-			superClass.accept(this);
-			currentDepth--;
+			OWLClassExpression cls;
+			if(subsumptionDown){
+				cls = axiom.getSubClass();
+			} else {
+				cls = axiom.getSuperClass();
+			}
+			cls.accept(this);
 		}
 	}
 
@@ -344,12 +371,14 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLDisjointClassesAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
+			subsumptionDown = true;
 			Set<OWLClassExpression> disjointClasses = axiom.getClassExpressions();
 			for (OWLClassExpression dis : disjointClasses) {
 				dis.accept(this);
 			}
-			currentDepth--;
+			subsumptionDown = false;
+//			currentDepth--;
 		}
 	}
 
@@ -360,10 +389,10 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLDataPropertyDomainAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			OWLClassExpression domain = axiom.getDomain();
 			domain.accept(this);
-			currentDepth--;
+//			currentDepth--;
 		}
 	}
 
@@ -374,10 +403,10 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLObjectPropertyDomainAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			OWLClassExpression domain = axiom.getDomain();
 			domain.accept(this);
-			currentDepth--;
+//			currentDepth--;
 		}
 	}
 	
@@ -388,10 +417,10 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLSubObjectPropertyOfAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			OWLObjectPropertyExpression superProperty = axiom.getSuperProperty();
 			superProperty.accept(this);
-			currentDepth--;
+//			currentDepth--;
 		}
 	}
 
@@ -402,12 +431,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLEquivalentObjectPropertiesAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			Set<OWLObjectPropertyExpression> properties = axiom.getProperties();
 			for (OWLObjectPropertyExpression prop : properties) {
 				prop.accept(this);
 			}
-			currentDepth--;
+//			currentDepth--;
 		}
 	}
 
@@ -418,12 +447,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLDisjointDataPropertiesAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			Set<OWLDataPropertyExpression> properties = axiom.getProperties();
 			for (OWLDataPropertyExpression prop : properties) {
 				prop.accept(this);
 			}
-			currentDepth--;
+//			currentDepth--;
 		}
 	}
 
@@ -434,12 +463,12 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLDisjointObjectPropertiesAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			Set<OWLObjectPropertyExpression> properties = axiom.getProperties();
 			for (OWLObjectPropertyExpression prop : properties) {
 				prop.accept(this);
 			}
-			currentDepth--;
+//			currentDepth--;
 		}
 	}
 
@@ -450,10 +479,10 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	public void visit(OWLObjectPropertyRangeAxiom axiom) {
 		add(axiom);
 		if(fetchCompleteRelatedTBox || currentDepth < maxDepth){
-			currentDepth++;
+//			currentDepth++;
 			OWLClassExpression range = axiom.getRange();
 			range.accept(this);
-			currentDepth--;
+//			currentDepth--;
 		}
 	}
 
@@ -598,10 +627,8 @@ public class OWLAxiomCBDGenerator implements OWLAxiomVisitor, OWLClassExpression
 	 */
 	@Override
 	public void visit(SWRLRule rule) {
-		cbdAxioms.add(rule);
+		add(rule);
 	}
-
-	
 
 	/* (non-Javadoc)
 	 * @see org.semanticweb.owlapi.model.OWLClassExpressionVisitor#visit(org.semanticweb.owlapi.model.OWLObjectIntersectionOf)
