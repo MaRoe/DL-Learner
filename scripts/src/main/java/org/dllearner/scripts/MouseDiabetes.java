@@ -42,7 +42,7 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 
 public class MouseDiabetes {
     private static final Logger logger = Logger.getLogger(MouseDiabetes.class);
-    private static final String dir = "/mnt/tmp/mouse_diabetes/telco/data/";
+    private static final String dir = "/home/me/work/datasets/mouse/";
     private static final String goFilePath = dir + "go_xp_all-merged_w_refs.nt";
     private static final String mpFilePath = dir + "mp_w_refs.nt";
     private static final String mpEqFilePath = dir + "mp-equivalence-axioms.nt";
@@ -59,7 +59,7 @@ public class MouseDiabetes {
         Set<Individual> posExamples = readExamples(posExamplesFilePath);
         Set<Individual> negExamples = readExamples(negExamplesFilePath);
         logger.debug("finished reading examples");
-        
+        System.out.println(ontology.getObjectPropertiesInSignature());
         logger.debug("initializing knowledge source...");
         KnowledgeSource ks = new OWLAPIOntology(ontology);
         ks.init();
@@ -72,6 +72,7 @@ public class MouseDiabetes {
         logger.debug("finished initializing reasoner");
         logger.debug("initializing reasoner component...");
         MaterializableFastInstanceChecker rc = new MaterializableFastInstanceChecker(ks);
+        rc.setMaterializeExistentialRestrictions(false);
         rc.setReasonerComponent(baseReasoner);
         rc.setHandlePunning(false);
         rc.init();
@@ -136,7 +137,9 @@ public class MouseDiabetes {
     private static OWLOntology readDumpFiles() throws OWLOntologyCreationException, FileNotFoundException {
         List<String> filePaths = new ArrayList<String>(Arrays.asList(
                 mpFilePath, mpEqFilePath, genoDiseaseFilePath,
-                genoNotDiseaseFilePath, goFilePath));
+                genoNotDiseaseFilePath
+//                , goFilePath
+                ));
         Model model = ModelFactory.createDefaultModel();
         for (String filePath : filePaths) {
             logger.debug("reading " + filePath);
