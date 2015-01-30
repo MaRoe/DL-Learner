@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.Set;
 
 import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JLabel;
 
 import org.protege.editor.core.ui.util.InputVerificationStatusChangedListener;
 import org.protege.editor.owl.model.event.EventType;
@@ -31,7 +33,6 @@ import org.protege.editor.owl.model.event.OWLModelManagerListener;
 import org.protege.editor.owl.model.inference.OWLReasonerManager;
 import org.protege.editor.owl.model.inference.ReasonerStatus;
 import org.protege.editor.owl.ui.editor.AbstractOWLClassExpressionEditor;
-import org.semanticweb.owlapi.model.AxiomType;
 import org.semanticweb.owlapi.model.OWLClass;
 import org.semanticweb.owlapi.model.OWLClassExpression;
 
@@ -42,12 +43,14 @@ import org.semanticweb.owlapi.model.OWLClassExpression;
  * @author Christian Koetteritzsch
  * 
  */
-public class ProtegePlugin extends AbstractOWLClassExpressionEditor implements OWLModelManagerListener{
-	private DLLearnerView view;
+public class DLLearnerProtegePlugin extends AbstractOWLClassExpressionEditor implements OWLModelManagerListener{
+	private JComponent view;
 	
 	@Override
 	public JComponent getComponent() {
-		return view.getView();
+		view = new JPanel();
+		view.add(new JLabel("DL-Learner Plugin"));
+		return view;
 	}
 
 	@Override
@@ -57,38 +60,14 @@ public class ProtegePlugin extends AbstractOWLClassExpressionEditor implements O
 
 	@Override
 	public boolean isValidInput() {
-		if(getAxiomType() == AxiomType.EQUIVALENT_CLASSES) {
-			Manager.getInstance(getOWLEditorKit()).setLearningType(LearningType.EQUIVALENT);
-		} else if(getAxiomType() == AxiomType.SUBCLASS_OF) {
-			Manager.getInstance(getOWLEditorKit()).setLearningType(LearningType.SUPER);
-		}
-		view.reset();
 		checkReasonerStatus();
 		return true;
 	}
 	
-	private void checkReasonerStatus(){
+	private void checkReasonerStatus() {
 		OWLReasonerManager reasonerManager = getOWLEditorKit().getOWLModelManager().getOWLReasonerManager();
-//        ReasonerUtilities.warnUserIfReasonerIsNotConfigured(getOWLEditorKit().getOWLWorkspace(), reasonerManager);
-        ReasonerStatus status = reasonerManager.getReasonerStatus();
-        boolean enable = true;
-        String message = "";
-        if(status == ReasonerStatus.INITIALIZED){
-        	if(status == ReasonerStatus.INCONSISTENT){
-            	message = "The loaded ontology is inconsistent. Learning is only supported for consistent ontologies.";
-            	enable = false;
-            }
-        } else {
-        	message = "You have to select a reasoner (click on menu \"Reasoner\"). We recommend to use Pellet.";
-        	enable = false;
-        }
-        view.setHintMessage("<html><font size=\"3\" color=\"red\">" + message + "</font></html>");
-		view.setRunButtonEnabled(enable);
-		if(enable){
-			if(!Manager.getInstance().isPreparing() && Manager.getInstance().isReinitNecessary()){
-				new ReadingOntologyThread(view).start();
-			}
-		}
+		ReasonerStatus status = reasonerManager.getReasonerStatus();
+		System.out.println(status);
 	}
 
 	@Override
@@ -98,19 +77,13 @@ public class ProtegePlugin extends AbstractOWLClassExpressionEditor implements O
 
 	@Override
 	public void initialise() throws Exception {
-		Manager.getInstance(getOWLEditorKit());
-		view = new DLLearnerView(super.getOWLEditorKit());
-		Manager.getInstance().setProgressMonitor(view.getStatusBar());
 		System.out.println("Initializing DL-Learner plugin...");
 		addListeners();
 	}
 
 	@Override
 	public void dispose() throws Exception {
-		view.dispose();
-		Manager.getInstance().dispose();
 		removeListeners();
-		view = null;
 	}
 
 	@Override
@@ -125,13 +98,10 @@ public class ProtegePlugin extends AbstractOWLClassExpressionEditor implements O
 	
 	private void addListeners(){
 		getOWLEditorKit().getOWLModelManager().addListener(this);
-		getOWLEditorKit().getOWLModelManager().addListener(Manager.getInstance(getOWLEditorKit()));
-		getOWLEditorKit().getOWLWorkspace().getOWLSelectionModel().addListener(Manager.getInstance(getOWLEditorKit()));
 	}
 	
 	private void removeListeners(){
-		getOWLEditorKit().getOWLModelManager().removeListener(Manager.getInstance(getOWLEditorKit()));
-		getOWLEditorKit().getOWLWorkspace().getOWLSelectionModel().removeListener(Manager.getInstance(getOWLEditorKit()));
+		getOWLEditorKit().getOWLModelManager().removeListener(this);
 	}
 
 	@Override

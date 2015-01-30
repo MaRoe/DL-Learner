@@ -13,68 +13,19 @@
 		<version>1.0-RC1</version>
 	</parent>
 
-
 	<dependencies>
-		<dependency>
-			<groupId>org.dllearner</groupId>
-			<artifactId>components-core</artifactId>
-		</dependency>
 
  		<dependency>
 			<groupId>edu.stanford.protege</groupId>
             <artifactId>org.protege.editor.owl</artifactId>
 			<version>4.3.0</version>
         </dependency>
-       <!--  
-		<dependency>
-			<groupId>org.protege.editor.core</groupId>
-			<artifactId>org.protege.editor.core.application</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.protege.editor.owl</groupId>
-			<artifactId>org.protege.editor.owl</artifactId>
-		</dependency> -->
-
-		<dependency>
-			<groupId>net.sourceforge.browserlauncher2</groupId>
-			<artifactId>browserlauncher2</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.swinglabs</groupId>
-			<artifactId>swingx</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.jgoodies</groupId>
-			<artifactId>looks</artifactId>
-		</dependency>
 		
-		<dependency>
-				<groupId>com.jamonapi</groupId>
-				<artifactId>jamon</artifactId>
-			</dependency>
-			
-			<dependency>
-				<groupId>org.json</groupId>
-				<artifactId>json</artifactId>
-			</dependency>
 	</dependencies>
 
 	<build>
 		<finalName>DL-Learner-Plugin</finalName>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<configuration>
-					<archive>
-						<manifestFile>src/main/resources/META-INF/MANIFEST.MF</manifestFile>
-					</archive>
-
-				</configuration>
-			</plugin>
 			<plugin>
 				<groupId>org.apache.felix</groupId>
 				<artifactId>maven-bundle-plugin</artifactId>
@@ -87,7 +38,9 @@
 						<Bundle-SymbolicName>${project.artifactId};singleton:=true</Bundle-SymbolicName>
 						<Bundle-Vendor>DL-Learner Project</Bundle-Vendor>
 						<Import-Package>
+						org.apache.log4j.*;version="[1.2,2)", 
 							org.protege.editor.owl.*;version="4.3", <!-- equivalent to [4.3,infinity) -->
+							org.protege.editor.core.*;version="4.3", <!-- equivalent to [4.3,infinity) -->
 							*
 						</Import-Package>
 						
@@ -106,113 +59,6 @@
 					</executions>
 				</configuration>
             </plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<!-- Uncomment this when the junits are independent of a runtime directory -->
-					<!--<includes> -->
-					<!--<include>org/dllearner/test/junit/*</include> -->
-					<!--</includes> -->
-					<excludes>
-						<exclude>*</exclude>
-						<!--This line excludes inner classes -->
-						<exclude>**/*$*</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
-	<!-- <plugin>
-		<groupId>org.apache.maven.plugins</groupId>
-		<artifactId>maven-dependency-plugin</artifactId>
-		<version>2.4</version>
-		<executions>
-			<execution>
-				<id>copy</id>
-				<phase>prepare-package</phase>
-				<goals>
-					<goal>copy</goal>
-				</goals>
-				<configuration>
-					<artifactItems>
-						<artifactItem>
-							<groupId>org.protege.editor.owl</groupId>
-							<artifactId>org.protege.editor.owl</artifactId>
-							<version>4.2</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-							<outputDirectory>${project.build.directory}/classes/lib</outputDirectory>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.protege.editor.owl</groupId>
-							<artifactId>org.protege.editor.owl</artifactId>
-							<version>4.2</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-							<outputDirectory>${project.build.directory}/classes/lib</outputDirectory>
-						</artifactItem>
-					</artifactItems>
-				</configuration>
-			</execution>
-		</executions>
-	</plugin> -->
-	<plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-dependencies</id>
-            <phase>prepare-package</phase>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>${project.build.directory}/classes/lib</outputDirectory>
-              <overWriteReleases>false</overWriteReleases>
-              <overWriteSnapshots>false</overWriteSnapshots>
-              <overWriteIfNewer>true</overWriteIfNewer>
-              <excludeTransitive>true</excludeTransitive>
-              <stripVersion>true</stripVersion>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
 		</plugins>
-		<pluginManagement>
-			<plugins>
-				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
-				<plugin>
-					<groupId>org.eclipse.m2e</groupId>
-					<artifactId>lifecycle-mapping</artifactId>
-					<version>1.0.0</version>
-					<configuration>
-						<lifecycleMappingMetadata>
-							<pluginExecutions>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>
-											org.apache.maven.plugins
-										</groupId>
-										<artifactId>
-											maven-dependency-plugin
-										</artifactId>
-										<versionRange>
-											[2.4,)
-										</versionRange>
-										<goals>
-											<goal>
-												copy-dependencies
-											</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore />
-									</action>
-								</pluginExecution>
-							</pluginExecutions>
-						</lifecycleMappingMetadata>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
 	</build>
 </project>
